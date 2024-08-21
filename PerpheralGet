@@ -35,6 +35,58 @@ local function printPaged(text)
     end
 end
 
+-- Function to display table contents with pagination
+local function printTablePaged(t)
+    local lines = {}
+
+    -- Function to recursively add lines from a table
+    local function addLines(tbl, indent)
+        indent = indent or 0
+        local indentStr = string.rep("  ", indent)
+        
+        for k, v in pairs(tbl) do
+            if type(v) == "table" then
+                table.insert(lines, indentStr .. tostring(k) .. ":")
+                addLines(v, indent + 1)
+            else
+                table.insert(lines, indentStr .. tostring(k) .. ": " .. tostring(v))
+            end
+        end
+    end
+
+    -- Generate the lines to be displayed
+    addLines(t)
+
+    local currentPage = 1
+    local linesPerPage = term.getSize() - 4
+    local totalPages = math.ceil(#lines / linesPerPage)
+
+    while true do
+        term.clear()
+        term.setCursorPos(1, 1)
+        print("Output (Page " .. currentPage .. " of " .. totalPages .. ")")
+        print("Use Up/Down to scroll, Q to return")
+
+        local startLine = (currentPage - 1) * linesPerPage + 1
+        local endLine = math.min(currentPage * linesPerPage, #lines)
+
+        for i = startLine, endLine do
+            print(lines[i])
+        end
+
+        -- Wait for user input
+        local event, key = os.pullEvent("key")
+
+        if key == keys.down and currentPage < totalPages then
+            currentPage = currentPage + 1
+        elseif key == keys.up and currentPage > 1 then
+            currentPage = currentPage - 1
+        elseif key == keys.q then
+            break
+        end
+    end
+end
+
 -- Function to list and interact with methods of a peripheral
 local function interactWithPeripheral(side)
     if peripheral.isPresent(side) then
@@ -74,24 +126,16 @@ local function interactWithPeripheral(side)
                     print("Calling method: " .. methods[selected])
                     
                     -- Call the method and handle result
-                    if methods[selected] == "getDocs" then
-                        local result = peripheral.call(side, "getDocs")
-                        if type(result) == "string" then
-                            printPaged(result)
-                        else
-                            print("Method returned an unexpected result.")
-                            print("\nPress any key to return to the method list.")
-                            os.pullEvent("key")
-                        end
+                    local result = peripheral.call(side, methods[selected])
+                    
+                    if type(result) == "string" then
+                        printPaged(result)
+                    elseif type(result) == "table" then
+                        printTablePaged(result)
                     else
-                        local result = peripheral.call(side, methods[selected])
-                        if type(result) == "table" then
-                            printTablePaged(result)
-                        else
-                            print("Method returned: " .. tostring(result))
-                            print("\nPress any key to return to the method list.")
-                            os.pullEvent("key")
-                        end
+                        print("Method returned: " .. tostring(result))
+                        print("\nPress any key to return to the method list.")
+                        os.pullEvent("key")
                     end
                 elseif key == keys.q then
                     running = false
