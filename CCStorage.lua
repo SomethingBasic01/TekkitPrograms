@@ -1,51 +1,31 @@
--- Initialize variables
-local storage = {}
+-- Clear the terminal to start fresh
+term.clear()
+term.setCursorPos(1, 1)
 
--- Function to scan and update storage table
-function scanInventories()
-    local peripherals = {peripheral.find("inventory")}  -- Ensure peripherals is a table
-    if #peripherals > 0 then  -- Check if there are any inventory peripherals found
-        for _, inv in pairs(peripherals) do
-            print("Found inventory peripheral: " .. peripheral.getType(inv))
-            local items = inv.list()
-            if items then  -- Check if items table is valid
-                for slot, item in pairs(items) do
-                    local name = item.name
-                    local mod = name:match("([^:]+):")
-                    if storage[name] then
-                        storage[name].count = storage[name].count + item.count
-                        table.insert(storage[name].locations, {peripheral = inv, slot = slot})
-                    else
-                        storage[name] = {
-                            count = item.count,
-                            mod = mod,
-                            locations = {{peripheral = inv, slot = slot}}
-                        }
-                    end
-                end
-            else
-                print("No items found in inventory!")
-            end
+-- List all connected peripherals
+local peripherals = peripheral.getNames()
+
+if #peripherals > 0 then
+    term.write("Connected Peripherals:\n")
+    for i, name in ipairs(peripherals) do
+        term.write("- " .. name .. "\n")
+    end
+else
+    term.write("No peripherals detected.\n")
+end
+
+-- Attempt to wrap the chest
+local chest = peripheral.wrap("right")  -- Change "right" to the correct side
+if chest then
+    term.write("Chest found on 'right' side.\n")
+    local items = chest.list()
+    if items then
+        for slot, item in pairs(items) do
+            term.write("Slot: " .. slot .. ", Item: " .. item.name .. ", Count: " .. item.count .. "\n")
         end
     else
-        print("No inventory peripherals found!")
+        term.write("Chest is empty.\n")
     end
-end
-
--- Function to display inventory
-function displayInventory(filter)
-    term.clear()
-    term.setCursorPos(1, 1)
-    for name, data in pairs(storage) do
-        if filter == nil or name:find(filter) or data.mod == filter then
-            print(name .. " x" .. data.count .. " [" .. data.mod .. "]")
-        end
-    end
-end
-
--- Main Program Loop
-while true do
-    scanInventories()
-    displayInventory()
-    os.sleep(1)  -- Add sleep to yield control
+else
+    term.write("No chest found on the 'right' side!\n")
 end
