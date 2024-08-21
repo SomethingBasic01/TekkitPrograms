@@ -3,8 +3,8 @@ local storage = {}
 
 -- Function to scan and update storage table
 function scanInventories()
-    local peripherals = peripheral.find("inventory")
-    if peripherals then  -- Check if any inventory peripherals were found
+    local peripherals = {peripheral.find("inventory")}  -- Ensure peripherals is a table
+    if #peripherals > 0 then  -- Check if there are any inventory peripherals found
         for _, inv in pairs(peripherals) do
             local items = inv.list()
             if items then  -- Check if items table is valid
