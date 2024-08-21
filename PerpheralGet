@@ -1,0 +1,24 @@
+-- Function to list all methods of a peripheral
+local function listPeripheralMethods(side)
+    if peripheral.isPresent(side) then
+        print("Peripheral on side " .. side .. ":")
+        local methods = peripheral.getMethods(side)
+        if methods then
+            for i, method in ipairs(methods) do
+                print("  " .. i .. ". " .. method)
+            end
+        else
+            print("  No methods available.")
+        end
+    else
+        print("No peripheral on side " .. side)
+    end
+end
+
+-- List of possible sides for peripherals
+local sides = {"left", "right", "top", "bottom", "front", "back"}
+
+-- Loop through all sides and list methods
+for _, side in ipairs(sides) do
+    listPeripheralMethods(side)
+end
