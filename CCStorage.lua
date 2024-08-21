@@ -20,12 +20,13 @@ if chest then
     term.write("Chest found on 'right' side.\n")
     local items = chest.list()
     if items then
+        term.write("Items found:\n")
         for slot, item in pairs(items) do
             term.write("Slot: " .. slot .. ", Item: " .. item.name .. ", Count: " .. item.count .. "\n")
         end
     else
-        term.write("Chest is empty.\n")
+        term.write("Chest is empty or inaccessible.\n")
     end
 else
-    term.write("No chest found on the 'right' side!\n")
+    term.write("Failed to wrap the chest!\n")
 end
