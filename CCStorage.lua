@@ -3,7 +3,12 @@ local storage = {}
 
 -- Function to scan and update storage table
 function scanInventories()
+    term.clear()
+    term.setCursorPos(1, 1)
+    term.write("Scanning inventories...\n")
+    
     local peripherals = {peripheral.find("inventory")}
+    
     if #peripherals > 0 then
         for _, inv in pairs(peripherals) do
             local items = inv.list()
@@ -24,8 +29,9 @@ function scanInventories()
                 end
             end
         end
+        term.write("Inventories scanned successfully.\n")
     else
-        print("No inventory peripherals found!")
+        term.write("No inventory peripherals found!\n")
     end
 end
 
@@ -46,17 +52,16 @@ function displayInventory(page, filter)
     end
 
     if #displayedItems == 0 then
-        term.write("No items found.")
+        term.write("No items found.\n")
         return
     end
 
     for i = startItem, math.min(endItem, #displayedItems) do
         local item = displayedItems[i]
         term.write("Item: " .. item.name .. ", Count: " .. item.count .. ", Mod: " .. item.mod .. "\n")
-        term.setCursorPos(1, select(2, term.getCursorPos()) + 1)
     end
 
-    term.write("Page " .. currentPage .. " of " .. math.ceil(#displayedItems / itemsPerPage) .. "\n")
+    term.write("\nPage " .. currentPage .. " of " .. math.ceil(#displayedItems / itemsPerPage) .. "\n")
 end
 
 -- Function to search and filter items
@@ -101,6 +106,4 @@ while true do
     elseif choice == "3" then
         break
     end
-
-    os.sleep(1)
 end
