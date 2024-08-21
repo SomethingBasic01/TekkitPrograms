@@ -1,3 +1,18 @@
+-- Function to display table contents
+local function printTable(t, indent)
+    indent = indent or 0
+    local indentStr = string.rep("  ", indent)
+    
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            print(indentStr .. tostring(k) .. ":")
+            printTable(v, indent + 1)
+        else
+            print(indentStr .. tostring(k) .. ": " .. tostring(v))
+        end
+    end
+end
+
 -- Function to list and interact with methods of a peripheral
 local function interactWithPeripheral(side)
     if peripheral.isPresent(side) then
@@ -36,12 +51,14 @@ local function interactWithPeripheral(side)
                     term.setCursorPos(1, 1)
                     print("Calling method: " .. methods[selected])
                     
-                    -- Check if method requires arguments
-                    local func = peripheral.call(side, methods[selected])
-                    if func == nil then
-                        print("Method called successfully with no return value.")
+                    -- Call the method
+                    local result = peripheral.call(side, methods[selected])
+                    
+                    if type(result) == "table" then
+                        print("Method returned a table:")
+                        printTable(result)
                     else
-                        print("Method returned: " .. tostring(func))
+                        print("Method returned: " .. tostring(result))
                     end
 
                     print("\nPress any key to return to the method list.")
