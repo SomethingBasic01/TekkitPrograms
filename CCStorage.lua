@@ -4,24 +4,28 @@ local storage = {}
 -- Function to scan and update storage table
 function scanInventories()
     local peripherals = peripheral.find("inventory")
-    for _, inv in pairs(peripherals) do
-        local items = inv.list()
-        if items then  -- Check if items table is valid
-            for slot, item in pairs(items) do
-                local name = item.name
-                local mod = name:match("([^:]+):")
-                if storage[name] then
-                    storage[name].count = storage[name].count + item.count
-                    table.insert(storage[name].locations, {peripheral = inv, slot = slot})
-                else
-                    storage[name] = {
-                        count = item.count,
-                        mod = mod,
-                        locations = {{peripheral = inv, slot = slot}}
-                    }
+    if peripherals then  -- Check if any inventory peripherals were found
+        for _, inv in pairs(peripherals) do
+            local items = inv.list()
+            if items then  -- Check if items table is valid
+                for slot, item in pairs(items) do
+                    local name = item.name
+                    local mod = name:match("([^:]+):")
+                    if storage[name] then
+                        storage[name].count = storage[name].count + item.count
+                        table.insert(storage[name].locations, {peripheral = inv, slot = slot})
+                    else
+                        storage[name] = {
+                            count = item.count,
+                            mod = mod,
+                            locations = {{peripheral = inv, slot = slot}}
+                        }
+                    end
                 end
             end
         end
+    else
+        print("No inventory peripherals found!")
     end
 end
 
