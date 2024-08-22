@@ -1,16 +1,15 @@
--- Unified Network Item Transfer Program
--- Moves items from a dispenser below the turtle to a chest in the network
-
--- Function to transfer items from dispenser to chest
+-- Function to transfer items from the dispenser to the chest on the network
 local function transferItemsFromDispenserToChest()
-    -- Wrap the dispenser under the turtle
+    -- Wrap the dispenser connected to the bottom of the turtle
     local dispenser = peripheral.wrap("bottom")
-    
-    -- Get the chest peripheral by its name
+
+    -- Wrap the chest connected via modem on the network
     local targetChest = peripheral.wrap("minecraft:chest_15")
-    
+
     if targetChest then
-        -- Attempt to push items from dispenser to the chest
+        print("Chest found: minecraft:chest_15")
+        
+        -- Attempt to push items from the dispenser to the chest
         local items = dispenser.list()
         for slot, item in pairs(items) do
             local success = dispenser.pushItems(peripheral.getName(targetChest), slot)
