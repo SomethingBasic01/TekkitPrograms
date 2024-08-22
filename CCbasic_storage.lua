@@ -1,5 +1,5 @@
--- Modular Storage System with Deposit Functionality
--- Adjusted for Correct Peripheral Handling
+-- Modular Storage System with Enhanced Debugging
+-- Adjusted to Verify Item Scanning and Display
 
 local storageDB = {}
 local itemDB = {}
@@ -37,20 +37,28 @@ function updateDatabase()
                 itemDB[item.name].count = itemDB[item.name].count + item.count
                 table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
                 print("Found item: " .. item.name .. " x " .. item.count)
+            else
+                print("No item found in slot: " .. slot)
             end
         end
     end
     print("Finished updating database.")
 end
 
--- Display items
+-- Display items in storage
 function displayItems()
     term.clear()
     term.setCursorPos(1, 1)
     print("Items in Storage:")
     
+    local hasItems = false
     for itemName, itemDetails in pairs(itemDB) do
         print(itemName .. ": " .. itemDetails.count .. " items")
+        hasItems = true
+    end
+    
+    if not hasItems then
+        print("No items found in storage.")
     end
 end
 
