@@ -33,15 +33,9 @@ local function moveItemToChest(dispenserName)
                 local chest = peripheral.wrap(name)
                 print("Chest found: " .. name)
                 
-                -- Debug: List items in chest
-                local chestItems = chest.list()
-                for chestSlot, chestItem in pairs(chestItems) do
-                    print("Slot " .. chestSlot .. ": " .. chestItem.name .. " x " .. chestItem.count)
-                end
-                
                 -- Move the item to the chest if a slot is found
                 for chestSlot = 1, chest.size() do
-                    if not chest.getItemDetail(chestSlot) then
+                    if not chest.list()[chestSlot] then
                         dispenser.pushItems(name, slot, item.count, chestSlot)
                         print("Moved item from dispenser to chest.")
                         return true
