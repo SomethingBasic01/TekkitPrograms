@@ -1,5 +1,5 @@
 -- Modular Storage System with Deposit Functionality
--- Debugging Version
+-- Adjusted for Correct Peripheral Handling
 
 local storageDB = {}
 local itemDB = {}
@@ -43,7 +43,7 @@ function updateDatabase()
     print("Finished updating database.")
 end
 
--- Display a specific page of items
+-- Display items
 function displayItems()
     term.clear()
     term.setCursorPos(1, 1)
@@ -65,11 +65,13 @@ function retrieveItem(itemName, count)
     local needed = count
     for _, detail in ipairs(itemDB[itemName].locations) do
         local inventory = storageDB[detail.peripheral]
-        local retrieved = math.min(needed, detail.count)
-        inventory.pushItems(peripheral.getName(), detail.slot, retrieved)
-        needed = needed - retrieved
-        print("Retrieved " .. retrieved .. " of " .. itemName)
-        if needed <= 0 then break end
+        if inventory then
+            local retrieved = math.min(needed, detail.count)
+            inventory.pushItems(peripheral.getName(), detail.slot, retrieved)
+            needed = needed - retrieved
+            print("Retrieved " .. retrieved .. " of " .. itemName)
+            if needed <= 0 then break end
+        end
     end
 end
 
@@ -82,8 +84,10 @@ function depositItems()
             print("Depositing item: " .. item.name)
             local count = item.count
             for name, inventory in pairs(storageDB) do
-                count = count - inventory.pullItems(peripheral.getName(), i, count)
-                if count <= 0 then break end
+                if inventory then
+                    count = count - inventory.pullItems(peripheral.getName(), i, count)
+                    if count <= 0 then break end
+                end
             end
         end
     end
