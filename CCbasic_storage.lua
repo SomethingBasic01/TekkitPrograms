@@ -11,8 +11,10 @@ local filteredItems = {}
 function scanInventories()
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
-        if peripheral.getType(name) == "minecraft:chest" or peripheral.getType(name) == "ironchest:iron_chest" or peripheral.call(name, "size") then
-            storageDB[name] = peripheral.wrap(name)
+        -- Attempt to wrap the peripheral and check if it has an inventory size
+        local p = peripheral.wrap(name)
+        if p and p.size then
+            storageDB[name] = p
         end
     end
 end
@@ -21,13 +23,15 @@ end
 function updateDatabase()
     itemDB = {} -- Clear the database before scanning
     for name, inventory in pairs(storageDB) do
-        local items = inventory.list()
-        for slot, item in pairs(items) do
-            if not itemDB[item.name] then
-                itemDB[item.name] = {count = 0, locations = {}}
+        for slot = 1, inventory.size() do
+            local item = inventory.getItem(slot)
+            if item then
+                if not itemDB[item.name] then
+                    itemDB[item.name] = {count = 0, locations = {}}
+                end
+                itemDB[item.name].count = itemDB[item.name].count + item.count
+                table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
             end
-            itemDB[item.name].count = itemDB[item.name].count + item.count
-            table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
         end
     end
 end
