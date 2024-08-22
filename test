@@ -1,106 +1,55 @@
--- Dynamic Modular Storage System
--- Author: OpenAI ChatGPT
+local chestName, dispenserName
 
-local storageDB = {}
-local itemDB = {}
-
--- Scan and wrap all connected inventories
-local function scanInventories()
-    storageDB = {}
+-- Scan and find peripherals dynamically
+local function findPeripherals()
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
-        local p = peripheral.wrap(name)
-        if p and p.list then
-            storageDB[name] = p
-        end
-    end
-    print("Inventories scanned: " .. tostring(#peripherals))
-end
-
--- Function to find an appropriate slot for the item in the storage system
-local function findSlotForItem(chest, item)
-    local items = chest.list()
-    for slot, storedItem in pairs(items) do
-        if storedItem.name == item.name and storedItem.damage == item.damage and (not storedItem.nbt or storedItem.nbt == item.nbt) then
-            return slot
-        end
-    end
-    for slot = 1, chest.size() do
-        if not items[slot] then
-            return slot
-        end
-    end
-    return nil
-end
-
--- Function to pull items from the dispenser and place them in the storage network
-local function pullItemsFromDispenser(dispenser)
-    local items = dispenser.list()
-    for slot, item in pairs(items) do
-        local placed = false
-        for name, chest in pairs(storageDB) do
-            local targetSlot = findSlotForItem(chest, item)
-            if targetSlot then
-                dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
-                placed = true
-                break
-            end
-        end
-        if not placed then
-            print("No available slots for " .. item.name .. ". More storage needed!")
-            return false
-        end
-    end
-    return true
-end
-
--- Update the item database by aggregating items from all inventories
-local function updateDatabase()
-    itemDB = {}
-    for name, chest in pairs(storageDB) do
-        local items = chest.list()
-        for slot, item in pairs(items) do
-            if not itemDB[item.name] then
-                itemDB[item.name] = item.count
-            else
-                itemDB[item.name] = itemDB[item.name] + item.count
-            end
+        if name:find("minecraft:chest") then
+            chestName = name
+        elseif name:find("minecraft:dispenser") then
+            dispenserName = name
         end
     end
 end
 
--- Display the aggregated items neatly on the terminal
-local function displayItems()
-    term.clear()
-    term.setCursorPos(1, 1)
-    print("=== Combined Items in Storage ===")
-    local itemList = {}
-    for name, count in pairs(itemDB) do
-        table.insert(itemList, {name = name, count = count})
-    end
-    table.sort(itemList, function(a, b) return a.name < b.name end)
-    for _, item in ipairs(itemList) do
-        print(string.format("%-30s : %d", item.name, item.count))
-    end
-end
+-- Function to transfer items from dispenser to chest
+local function transferItems()
+    if dispenserName and chestName then
+        local dispenser = peripheral.wrap(dispenserName)
+        local chest = peripheral.wrap(chestName)
 
--- Main program loop
-local function main()
-    scanInventories()
-    while true do
-        local dispenser = peripheral.find("minecraft:dispenser")
-        if dispenser then
-            local success = pullItemsFromDispenser(dispenser)
-            if success then
-                updateDatabase()
-                displayItems()
+        if dispenser and chest then
+            -- Iterate through the dispenser slots
+            for slot, item in pairs(dispenser.list()) do
+                -- Try to push the items to the chest
+                local moved = dispenser.pushItems(peripheral.getName(chest), slot)
+                if moved == 0 then
+                    print("Failed to move item from dispenser to chest.")
+                else
+                    print("Moved " .. moved .. " items from dispenser to chest.")
+                end
             end
         else
-            print("Dispenser not found!")
+            print("Failed to wrap either dispenser or chest.")
         end
-        sleep(5) -- Update interval in seconds
+    else
+        print("Dispenser or chest not found.")
     end
 end
 
--- Run the program
+-- Main function to run the program
+local function main()
+    findPeripherals()
+
+    -- Check if the peripherals are found
+    if chestName and dispenserName then
+        print("Chest found: " .. chestName)
+        print("Dispenser found: " .. dispenserName)
+        transferItems()
+    else
+        print("Failed to detect necessary peripherals. Cannot proceed.")
+    end
+end
+
+-- Run the main function
 main()
