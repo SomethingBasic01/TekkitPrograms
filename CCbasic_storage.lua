@@ -1,4 +1,4 @@
--- Modular Storage System with Enhanced Deposit Chest Detection
+-- Modular Storage System with User-defined Item Naming
 -- Author: OpenAI ChatGPT
 
 local storageDB = {}
@@ -82,48 +82,21 @@ local function scanAndMapItems()
     end
 end
 
--- Function to find an appropriate slot for the item in the storage system
-local function findSlotForItem(chest, item)
-    local items = chest.list()
-    for slot, storedItem in pairs(items) do
-        if storedItem.name == item.name and storedItem.damage == item.damage and (not storedItem.nbt or storedItem.nbt == item.nbt) then
-            return slot
-        end
-    end
-    for slot = 1, chest.size() do
-        if not items[slot] then
-            return slot
-        end
-    end
-    return nil
-end
-
--- Function to pull items from the detected deposit chest and place them in the storage network
-local function pullItemsFromDepositChest()
-    local success, block = turtle.inspectDown()
-    if success and block.name:find("chest") then
-        local depositChest = peripheral.wrap("bottom")
-        local items = depositChest.list()
-        for slot, item in pairs(items) do
-            local placed = false
-            for _, chest in pairs(storageDB) do
-                local targetSlot = findSlotForItem(chest, item)
-                if targetSlot then
-                    depositChest.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
-                    placed = true
-                    break
-                end
-            end
-            if not placed then
-                print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
+-- Function for the turtle to deposit items into the chest below
+local function depositItems()
+    for slot = 1, 16 do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
+            local success = turtle.dropDown()
+            if not success then
+                print("Failed to deposit items from slot " .. slot .. ". Is there a chest below?")
                 return false
             end
         end
-        return true
-    else
-        print("No chest detected below the turtle.")
-        return false
     end
+    turtle.select(1) -- Reset to slot 1
+    print("All items deposited successfully.")
+    return true
 end
 
 -- Update the item database by aggregating items from all inventories
@@ -163,8 +136,13 @@ local function main()
     scanInventories()
     while true do
         scanAndMapItems()
-        local success = pullItemsFromDepositChest()
-        if success then
+        local depositSuccess = depositItems()
+        if not depositSuccess then
+            print("Waiting for Deposit Chest to be available...")
+            sleep(5)
+        else
+            print("Waiting for network to pull items...")
+            sleep(10)  -- Adjust this if needed to give the network time to pull items
             updateDatabase()
             displayItems()
         end
