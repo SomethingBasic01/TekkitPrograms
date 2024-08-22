@@ -1,5 +1,4 @@
--- Modular Storage System with Enhanced Debugging
--- Adjusted to Verify Item Scanning and Display
+-- Modular Storage System with Explicit Debugging
 
 local storageDB = {}
 local itemDB = {}
@@ -30,15 +29,15 @@ function updateDatabase()
         print("Scanning inventory: " .. name)
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
-            if item and item.name then
+            if item then
+                print("Item found: ".. item.name .. " x " .. item.count .. " in slot " .. slot)
                 if not itemDB[item.name] then
                     itemDB[item.name] = {count = 0, locations = {}}
                 end
                 itemDB[item.name].count = itemDB[item.name].count + item.count
                 table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
-                print("Found item: " .. item.name .. " x " .. item.count)
             else
-                print("No item found in slot: " .. slot)
+                print("Slot " .. slot .. " is empty.")
             end
         end
     end
