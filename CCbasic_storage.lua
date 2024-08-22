@@ -1,4 +1,4 @@
--- Modular Storage System with Name Mapping
+-- Modular Storage System with Live Updates
 
 local storageDB = {}
 local itemDB = {}
@@ -53,11 +53,14 @@ function displayItems()
     end
 end
 
--- Main program loop
+-- Main program loop with live updates
 function main()
     scanInventories()
-    updateDatabase()
-    displayItems()
+    while true do
+        updateDatabase()
+        displayItems()
+        sleep(5)  -- Update every 5 seconds
+    end
 end
 
 main()
