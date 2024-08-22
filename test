@@ -6,27 +6,16 @@ local function transferItemsFromDispenserToChest()
     -- Wrap the dispenser under the turtle
     local dispenser = peripheral.wrap("bottom")
     
-    -- Get all the peripherals connected to the modem network
-    local peripherals = peripheral.getNames()
-    
-    -- Find a connected chest on the modem network
-    local targetChest = nil
-    for _, name in ipairs(peripherals) do
-        local p = peripheral.wrap(name)
-        if p and p.getItemDetail then  -- Check if it's a chest or similar inventory
-            targetChest = name
-            print("Found chest: " .. targetChest)
-            break
-        end
-    end
+    -- Get the chest peripheral by its name
+    local targetChest = peripheral.wrap("minecraft:chest_15")
     
     if targetChest then
         -- Attempt to push items from dispenser to the chest
         local items = dispenser.list()
         for slot, item in pairs(items) do
-            local success = dispenser.pushItems(targetChest, slot)
+            local success = dispenser.pushItems(peripheral.getName(targetChest), slot)
             if success > 0 then
-                print("Successfully transferred " .. success .. " items to " .. targetChest)
+                print("Successfully transferred " .. success .. " items to " .. peripheral.getName(targetChest))
             else
                 print("Failed to transfer items from slot " .. slot)
             end
