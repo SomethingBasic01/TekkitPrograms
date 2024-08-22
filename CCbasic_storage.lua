@@ -1,4 +1,4 @@
--- Modular Storage System with User-defined Item Naming
+-- Modular Storage System with Dispenser as Deposit Chest
 -- Author: OpenAI ChatGPT
 
 local storageDB = {}
@@ -82,20 +82,41 @@ local function scanAndMapItems()
     end
 end
 
--- Function for the turtle to deposit items into the chest below
-local function depositItems()
+-- Function for the turtle to deposit items into the dispenser (acting as deposit chest)
+local function depositItems(dispenser)
     for slot = 1, 16 do
         turtle.select(slot)
         if turtle.getItemCount(slot) > 0 then
-            local success = turtle.dropDown()
+            local success = turtle.dropDown()  -- Assuming the dispenser is below the turtle
             if not success then
-                print("Failed to deposit items from slot " .. slot .. ". Is there a chest below?")
+                print("Failed to deposit items from slot " .. slot .. ". Is there a dispenser below?")
                 return false
             end
         end
     end
     turtle.select(1) -- Reset to slot 1
     print("All items deposited successfully.")
+    return true
+end
+
+-- Function to pull items from the dispenser and place them in the storage network
+local function pullItemsFromDispenser(dispenser)
+    local items = dispenser.list()
+    for slot, item in pairs(items) do
+        local placed = false
+        for _, chest in pairs(storageDB) do
+            local targetSlot = findSlotForItem(chest, item)
+            if targetSlot then
+                dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
+                placed = true
+                break
+            end
+        end
+        if not placed then
+            print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
+            return false
+        end
+    end
     return true
 end
 
@@ -134,17 +155,33 @@ end
 local function main()
     loadNameMap()
     scanInventories()
+
+    -- Find the dispenser in the network
+    local dispenser = nil
+    for _, name in ipairs(peripheral.getNames()) do
+        if peripheral.getType(name) == "minecraft:dispenser" then
+            dispenser = peripheral.wrap(name)
+            break
+        end
+    end
+
+    if not dispenser then
+        print("Dispenser not found!")
+        return
+    end
+
     while true do
         scanAndMapItems()
-        local depositSuccess = depositItems()
+        local depositSuccess = depositItems(dispenser)
         if not depositSuccess then
-            print("Waiting for Deposit Chest to be available...")
+            print("Waiting for Dispenser to be available...")
             sleep(5)
         else
-            print("Waiting for network to pull items...")
-            sleep(10)  -- Adjust this if needed to give the network time to pull items
-            updateDatabase()
-            displayItems()
+            local pullSuccess = pullItemsFromDispenser(dispenser)
+            if pullSuccess then
+                updateDatabase()
+                displayItems()
+            end
         end
         sleep(5) -- Update interval in seconds
     end
