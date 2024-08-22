@@ -1,4 +1,4 @@
--- Modular Storage System with Enhanced Deposit Chest Functionality
+-- Modular Storage System with Dispenser as Deposit Chest
 -- Author: OpenAI ChatGPT
 
 local storageDB = {}
@@ -98,15 +98,15 @@ local function findSlotForItem(chest, item)
     return nil
 end
 
--- Function to pull items from the deposit chest and place them in the storage network
-local function pullItemsFromDepositChest(depositChest)
-    local items = depositChest.list()
+-- Function to pull items from the dispenser and place them in the storage network
+local function pullItemsFromDispenser(dispenser)
+    local items = dispenser.list()
     for slot, item in pairs(items) do
         local placed = false
         for _, chest in pairs(storageDB) do
             local targetSlot = findSlotForItem(chest, item)
             if targetSlot then
-                depositChest.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
+                dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
                 placed = true
                 break
             end
@@ -156,15 +156,21 @@ local function main()
     scanInventories()
     while true do
         scanAndMapItems()
-        local depositChest = peripheral.wrap("Deposit")  -- Look for the chest named "Deposit"
-        if depositChest then
-            local success = pullItemsFromDepositChest(depositChest)
+        local dispenser = nil
+        for _, name in ipairs(peripheral.getNames()) do
+            if peripheral.getType(name) == "minecraft:dispenser" then
+                dispenser = peripheral.wrap(name)
+                break
+            end
+        end
+        if dispenser then
+            local success = pullItemsFromDispenser(dispenser)
             if success then
                 updateDatabase()
                 displayItems()
             end
         else
-            print("Deposit Chest not found!")
+            print("Dispenser not found!")
         end
         sleep(5) -- Update interval in seconds
     end
