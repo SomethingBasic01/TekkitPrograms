@@ -1,4 +1,5 @@
--- Simple Modular Storage System
+-- Simple Modular Storage System - Final Direct Fix
+
 local storageDB = {}
 local itemDB = {}
 
@@ -19,9 +20,10 @@ function updateDatabase()
     for name, inventory in pairs(storageDB) do
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
-            if item then
+            if item and item.name and item.count then -- Check for nil values
                 local itemName = item.name
                 local itemCount = item.count
+
                 if not itemDB[itemName] then
                     itemDB[itemName] = {count = 0, locations = {}}
                 end
