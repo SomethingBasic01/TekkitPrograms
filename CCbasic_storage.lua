@@ -1,4 +1,4 @@
--- Modular Storage System with Scrolling and Filtering
+-- Modular Storage System with Enhanced Functionality
 -- Written for Minecraft 1.12.2 with ComputerCraft
 
 local storageDB = {}
@@ -6,13 +6,13 @@ local itemDB = {}
 local itemsPerPage = 10
 local currentPage = 1
 local filteredItems = {}
-local filterMode = "none" -- Options: "none", "amount", "mod"
+local filterMode = "none" -- Options: "none", "amount"
 
--- Scan and wrap all connected chests
+-- Scan and wrap all connected inventories
 function scanInventories()
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
-        if peripheral.getType(name) == "minecraft:chest" then
+        if peripheral.hasType(name, "inventory") then
             storageDB[name] = peripheral.wrap(name)
         end
     end
@@ -21,14 +21,28 @@ end
 -- Populate database with item details
 function updateDatabase()
     itemDB = {} -- Clear the database before scanning
-    for name, chest in pairs(storageDB) do
-        local items = chest.list()
+    for name, inventory in pairs(storageDB) do
+        local items = inventory.list()
         for slot, item in pairs(items) do
             if not itemDB[item.name] then
-                itemDB[item.name] = {}
+                itemDB[item.name] = {count = 0, locations = {}}
             end
-            table.insert(itemDB[item.name], {peripheral = name, slot = slot, count = item.count})
+            itemDB[item.name].count = itemDB[item.name].count + item.count
+            table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
         end
+    end
+end
+
+-- Apply filtering and sorting based on the mode
+function applyFilter()
+    filteredItems = {}
+
+    for itemName, itemDetails in pairs(itemDB) do
+        table.insert(filteredItems, {name = itemName, count = itemDetails.count})
+    end
+
+    if filterMode == "amount" then
+        table.sort(filteredItems, function(a, b) return a.count > b.count end)
     end
 end
 
@@ -50,23 +64,20 @@ function displayPage(page)
     print("F to Filter, R to Refresh, Q to Quit")
 end
 
--- Apply filtering
-function applyFilter()
-    filteredItems = {}
+-- Retrieve an item from the storage system
+function retrieveItem(itemName, count)
+    if not itemDB[itemName] then
+        print("Item not found in storage")
+        return
+    end
 
-    for itemName, itemDetails in pairs(itemDB) do
-        local total = 0
-        for _, detail in ipairs(itemDetails) do
-            total = total + detail.count
-        end
-
-        if filterMode == "none" then
-            table.insert(filteredItems, {name = itemName, count = total})
-        elseif filterMode == "amount" and total >= 10 then -- Example: Filter by items with >= 10 count
-            table.insert(filteredItems, {name = itemName, count = total})
-        elseif filterMode == "mod" and string.match(itemName, "modid") then -- Example: Filter by modid
-            table.insert(filteredItems, {name = itemName, count = total})
-        end
+    local needed = count
+    for _, detail in ipairs(itemDB[itemName].locations) do
+        local inventory = storageDB[detail.peripheral]
+        local retrieved = math.min(needed, detail.count)
+        inventory.pushItems(peripheral.getName(), detail.slot, retrieved)
+        needed = needed - retrieved
+        if needed <= 0 then break end
     end
 end
 
@@ -82,14 +93,12 @@ function handleUserInput()
             currentPage = currentPage - 1
             displayPage(currentPage)
         elseif key == keys.f then
-            print("Select Filter: 1. None, 2. Amount >= 10, 3. By Mod")
+            print("Select Filter: 1. None, 2. Amount (Most First)")
             local choice = tonumber(read())
             if choice == 1 then
                 filterMode = "none"
             elseif choice == 2 then
                 filterMode = "amount"
-            elseif choice == 3 then
-                filterMode = "mod"
             end
             applyFilter()
             currentPage = 1
