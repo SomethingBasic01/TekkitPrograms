@@ -1,4 +1,4 @@
--- Simple Modular Storage System - Final Direct Fix
+-- Extremely Simplified Storage System
 
 local storageDB = {}
 local itemDB = {}
@@ -20,15 +20,13 @@ function updateDatabase()
     for name, inventory in pairs(storageDB) do
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
-            if item and item.name and item.count then -- Check for nil values
+            if item and item.name and item.count then
                 local itemName = item.name
                 local itemCount = item.count
-
                 if not itemDB[itemName] then
-                    itemDB[itemName] = {count = 0, locations = {}}
+                    itemDB[itemName] = {count = 0}
                 end
                 itemDB[itemName].count = itemDB[itemName].count + itemCount
-                table.insert(itemDB[itemName].locations, {peripheral = name, slot = slot, count = itemCount})
             end
         end
     end
@@ -44,29 +42,11 @@ function displayItems()
     end
 end
 
--- Handle user input
-function handleUserInput()
-    while true do
-        print("\n1. View Items")
-        print("R to Refresh, Q to Quit")
-        local choice = read()
-
-        if choice == "1" then
-            displayItems()
-        elseif choice == "r" then
-            updateDatabase()
-            print("Database refreshed.")
-        elseif choice:lower() == "q" then
-            return
-        end
-    end
-end
-
 -- Main program loop
 function main()
     scanInventories()
     updateDatabase()
-    handleUserInput()
+    displayItems()
 end
 
 main()
