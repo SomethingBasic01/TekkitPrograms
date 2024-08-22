@@ -156,7 +156,7 @@ local function main()
     scanInventories()
     while true do
         scanAndMapItems()
-        local depositChest = peripheral.wrap("minecraft:chest_0")  -- Replace with the correct name of your deposit chest
+        local depositChest = peripheral.wrap("Deposit")  -- Look for the chest named "Deposit"
         if depositChest then
             local success = pullItemsFromDepositChest(depositChest)
             if success then
