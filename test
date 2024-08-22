@@ -1,66 +1,18 @@
--- Refined Test Program: Drop Item from Turtle to Dispenser and Move to Chest
--- Author: OpenAI ChatGPT
-
--- Function to drop the item in the first slot into the dispenser below
-local function dropIntoDispenser()
-    turtle.select(1)
-    if turtle.getItemCount(1) > 0 then
-        local success = turtle.dropDown()  -- Drops item into the dispenser below
-        if not success then
-            print("Failed to drop item into the dispenser. Is there a dispenser below?")
-            return false
-        end
-    else
-        print("No item in the first slot of the turtle.")
-        return false
-    end
-    return true
-end
-
--- Function to move the item from the dispenser to an available slot in a connected chest
-local function moveItemToChest(dispenserName)
-    local dispenser = peripheral.wrap(dispenserName)
-    local items = dispenser.list()
-    if not items then
-        print("Error: Dispenser has no items or is not recognized correctly.")
-        return false
-    end
-
-    for slot, item in pairs(items) do
-        -- Look for a chest in the network using its proper name
-        for _, name in ipairs(peripheral.getNames()) do
-            if peripheral.getType(name) == "minecraft:chest" then
-                local chest = peripheral.wrap(name)
-                print("Chest found: " .. name)
-                
-                -- Move the item to the chest if a slot is found
-                for chestSlot = 1, chest.size() do
-                    if not chest.list()[chestSlot] then
-                        dispenser.pushItems(name, slot, item.count, chestSlot)
-                        print("Moved item from dispenser to chest.")
-                        return true
-                    end
-                end
-            end
-        end
-        print("No available slots in any connected chests.")
-        return false
-    end
-end
-
--- Main test function
-local function main()
-    -- Drop the item into the dispenser
-    if dropIntoDispenser() then
-        -- Use peripheral.getName to ensure correct targeting
-        local dispenserName = peripheral.getName(peripheral.wrap("bottom"))
-        if dispenserName then
-            moveItemToChest(dispenserName)
-        else
-            print("Dispenser not found or wrapped incorrectly.")
+-- Function to move items from the dispenser below to any chest on the network
+local function moveItemsToChest()
+    local dispenserName = "bottom"  -- Assuming the dispenser is directly below the turtle
+    local chestName = "right"  -- Assuming the chest is on the right side of the turtle or adjust as necessary
+    
+    -- Pull all items from the dispenser below
+    for slot = 1, 16 do
+        local pulled = turtle.suckDown()  -- Pull items from the dispenser into the turtle's inventory
+        if pulled then
+            print("Pulled item from dispenser.")
+            -- Now push the item into the connected chest
+            turtle.push(chestName)  -- Push items into the chest on the network
         end
     end
 end
 
--- Run the test program
-main()
+-- Run the function
+moveItemsToChest()
