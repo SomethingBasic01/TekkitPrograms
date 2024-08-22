@@ -50,7 +50,7 @@ end
 local function main()
     -- Drop the item into the dispenser
     if dropIntoDispenser() then
-        -- Find the dispenser in the network
+        -- Find the dispenser below the turtle
         local dispenser = peripheral.wrap("bottom")  -- Assuming the dispenser is directly below the turtle
         if dispenser then
             moveItemToChest(dispenser)
