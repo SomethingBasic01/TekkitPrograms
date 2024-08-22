@@ -117,7 +117,7 @@ local function displayItems()
     end
 end
 
--- Main program loop
+-- Main program loop without 'goto'
 local function main()
     loadNameMap()
     scanInventories()
@@ -127,11 +127,10 @@ local function main()
         if not depositSuccess then
             print("Waiting for Deposit Chest to be available...")
             sleep(5)
-            goto continue
+        else
+            updateDatabase()
+            displayItems()
         end
-        updateDatabase()
-        displayItems()
-        ::continue::
         sleep(5) -- Update interval in seconds
     end
 end
