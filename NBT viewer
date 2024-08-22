@@ -1,0 +1,54 @@
+-- NBT Data Viewer for Items in Turtle Inventory or Chest (Full NBT Display)
+-- Author: OpenAI ChatGPT
+
+-- Function to display all NBT data of an item
+local function displayNBTData(item)
+    if item then
+        print("=== Item Details ===")
+        print("Name: " .. item.name)
+        print("Damage: " .. (item.damage or 0))
+        print("Count: " .. item.count)
+        if item.nbt then
+            print("Full NBT Data:")
+            print(textutils.serialize(item.nbt))
+        else
+            print("No NBT Data")
+        end
+    else
+        print("No item found in this slot.")
+    end
+end
+
+-- Main function to run the NBT Viewer
+local function main()
+    print("Select an option:")
+    print("1. View NBT data of an item in the turtle's inventory")
+    print("2. View NBT data of an item in a connected chest")
+    local choice = tonumber(read())
+
+    if choice == 1 then
+        print("Enter the slot number (1-16):")
+        local slot = tonumber(read())
+        local item = turtle.getItemDetail(slot, true)  -- true ensures full NBT data is retrieved
+        displayNBTData(item)
+
+    elseif choice == 2 then
+        print("Enter the name of the chest (e.g., 'minecraft:chest_0'):")
+        local chestName = read()
+        local chest = peripheral.wrap(chestName)
+
+        if chest and chest.list then
+            print("Enter the slot number:")
+            local slot = tonumber(read())
+            local item = chest.getItemDetail(slot, true)  -- true ensures full NBT data is retrieved
+            displayNBTData(item)
+        else
+            print("No chest found with that name.")
+        end
+    else
+        print("Invalid choice.")
+    end
+end
+
+-- Run the program
+main()
