@@ -27,7 +27,7 @@ local function moveItemToChest(dispenserName)
     end
 
     for slot, item in pairs(items) do
-        -- Look for a chest in the network by its simpler peripheral name
+        -- Look for a chest in the network using its proper name
         for _, name in ipairs(peripheral.getNames()) do
             if peripheral.getType(name) == "minecraft:chest" then
                 local chest = peripheral.wrap(name)
@@ -52,8 +52,13 @@ end
 local function main()
     -- Drop the item into the dispenser
     if dropIntoDispenser() then
-        -- Find the specific dispenser below the turtle
-        moveItemToChest("bottom")
+        -- Use peripheral.getName to ensure correct targeting
+        local dispenserName = peripheral.getName(peripheral.wrap("bottom"))
+        if dispenserName then
+            moveItemToChest(dispenserName)
+        else
+            print("Dispenser not found or wrapped incorrectly.")
+        end
     end
 end
 
