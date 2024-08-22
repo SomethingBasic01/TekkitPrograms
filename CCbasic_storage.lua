@@ -62,7 +62,11 @@ local function scanAndMapItems()
                 local displayName = item.displayName or item.name
                 damageToNameMap[key] = displayName
                 print("Mapped: " .. key .. " => " .. displayName)
+            else
+                print("Already mapped: " .. key .. " as " .. damageToNameMap[key])
             end
+        else
+            print("Slot " .. slot .. " is empty.")
         end
     end
     saveNameMap()
@@ -128,6 +132,8 @@ local function main()
             print("Waiting for Deposit Chest to be available...")
             sleep(5)
         else
+            print("Waiting for network to pull items...")
+            sleep(10)  -- Adjust this if needed to give the network time to pull items
             updateDatabase()
             displayItems()
         end
