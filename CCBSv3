@@ -60,9 +60,12 @@ local function scanInventories()
     storageDB = {}
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
+        print("Checking peripheral: " .. name) -- Debugging statement
         local p = peripheral.wrap(name)
         if p and p.list then
             storageDB[name] = p
+        else
+            print("Peripheral " .. name .. " does not have a list method or failed to wrap.") -- Debugging statement
         end
     end
     print("Inventories scanned: " .. tostring(#peripherals))
@@ -122,7 +125,12 @@ local function pullItemsFromDispenser(dispenser)
         for _, chest in pairs(storageDB) do
             local targetSlot = findSlotForItem(chest, item)
             if targetSlot then
-                dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
+                local success = dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
+                if success then
+                    print("Successfully transferred " .. item.name .. " to " .. peripheral.getName(chest) .. " slot " .. targetSlot) -- Debugging statement
+                else
+                    print("Failed to transfer " .. item.name .. " to " .. peripheral.getName(chest) .. " slot " .. targetSlot) -- Debugging statement
+                end
                 placed = true
                 break
             end
@@ -193,6 +201,7 @@ local function main()
     -- Find the dispenser in the network
     local dispenser = nil
     for _, name in ipairs(peripheral.getNames()) do
+        print("Checking peripheral: " .. name) -- Debugging statement
         if peripheral.getType(name) == "minecraft:dispenser" then
             dispenser = peripheral.wrap(name)
             break
@@ -202,6 +211,8 @@ local function main()
     if not dispenser then
         print("Dispenser not found!")
         return
+    else
+        print("Dispenser found: " .. peripheral.getName(dispenser)) -- Debugging statement
     end
 
     -- Start the background task for the dispenser
