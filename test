@@ -1,28 +1,32 @@
--- Function to transfer items from the dispenser to the chest on the network
-local function transferItemsFromDispenserToChest()
-    -- Wrap the dispenser connected to the bottom of the turtle
-    local dispenser = peripheral.wrap("bottom")
+-- This function detects and wraps all peripherals into a single modem network
+local function detectAndWrapPeripherals()
+    peripheral.find("modem", rednet.open) -- Ensure the modem network is open
 
-    -- Wrap the chest connected via modem on the network
-    local targetChest = peripheral.wrap("minecraft:chest_15")
+    -- Wrap peripherals by name
+    local chest = peripheral.wrap("minecraft:chest_15")
+    local dispenser = peripheral.wrap("minecraft:dispenser_1")
 
-    if targetChest then
-        print("Chest found: minecraft:chest_15")
-        
-        -- Attempt to push items from the dispenser to the chest
-        local items = dispenser.list()
-        for slot, item in pairs(items) do
-            local success = dispenser.pushItems(peripheral.getName(targetChest), slot)
-            if success > 0 then
-                print("Successfully transferred " .. success .. " items to " .. peripheral.getName(targetChest))
-            else
-                print("Failed to transfer items from slot " .. slot)
-            end
-        end
+    if chest and dispenser then
+        print("Peripherals wrapped successfully.")
+        return chest, dispenser
     else
-        print("No chest found on the network.")
+        print("Failed to detect necessary peripherals.")
+        return nil, nil
     end
 end
 
--- Run the transfer function
-transferItemsFromDispenserToChest()
+-- Use the function to detect and wrap
+local chest, dispenser = detectAndWrapPeripherals()
+
+-- Example of pushing items into the chest
+if chest and dispenser then
+    -- Pull items from the dispenser and push to the chest
+    local success = dispenser.pushItems(peripheral.getName(chest), 1)
+    if success > 0 then
+        print("Items transferred successfully.")
+    else
+        print("Failed to transfer items.")
+    end
+else
+    print("Cannot proceed, peripherals not found.")
+end
