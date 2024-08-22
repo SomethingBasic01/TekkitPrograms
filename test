@@ -1,0 +1,64 @@
+-- Test Program: Drop Item from Turtle to Dispenser and Move to Chest
+-- Author: OpenAI ChatGPT
+
+-- Function to drop the item in the first slot into the dispenser below
+local function dropIntoDispenser()
+    turtle.select(1)
+    if turtle.getItemCount(1) > 0 then
+        local success = turtle.dropDown()  -- Drops item into the dispenser below
+        if not success then
+            print("Failed to drop item into the dispenser. Is there a dispenser below?")
+            return false
+        end
+    else
+        print("No item in the first slot of the turtle.")
+        return false
+    end
+    return true
+end
+
+-- Function to move the item from the dispenser to an available slot in a connected chest
+local function moveItemToChest(dispenser)
+    local items = dispenser.list()
+    for slot, item in pairs(items) do
+        -- Look for a chest in the network
+        for _, name in ipairs(peripheral.getNames()) do
+            local chest = peripheral.wrap(name)
+            if chest and chest.list then
+                local targetSlot = nil
+                -- Find an empty slot in the chest
+                for chestSlot = 1, chest.size() do
+                    if not chest.getItemDetail(chestSlot) then
+                        targetSlot = chestSlot
+                        break
+                    end
+                end
+                -- Move the item to the chest if a slot is found
+                if targetSlot then
+                    dispenser.pushItems(name, slot, item.count, targetSlot)
+                    print("Moved item from dispenser to chest.")
+                    return true
+                end
+            end
+        end
+        print("No available slots in any connected chests.")
+        return false
+    end
+end
+
+-- Main test function
+local function main()
+    -- Drop the item into the dispenser
+    if dropIntoDispenser() then
+        -- Find the dispenser in the network
+        local dispenser = peripheral.wrap("bottom")  -- Assuming the dispenser is directly below the turtle
+        if dispenser then
+            moveItemToChest(dispenser)
+        else
+            print("Dispenser not found!")
+        end
+    end
+end
+
+-- Run the test program
+main()
