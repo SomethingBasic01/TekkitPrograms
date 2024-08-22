@@ -25,7 +25,7 @@ function updateDatabase()
     for name, inventory in pairs(storageDB) do
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
-            if item then
+            if item and item.name then
                 if not itemDB[item.name] then
                     itemDB[item.name] = {count = 0, locations = {}}
                 end
