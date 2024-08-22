@@ -1,4 +1,4 @@
--- Modular Storage System with Enhanced Deposit Chest Detection
+-- Modular Storage System with Enhanced Deposit Chest Functionality
 -- Author: OpenAI ChatGPT
 
 local storageDB = {}
@@ -98,32 +98,25 @@ local function findSlotForItem(chest, item)
     return nil
 end
 
--- Function to pull items from the detected deposit chest and place them in the storage network
-local function pullItemsFromDepositChest()
-    local success, block = turtle.inspectDown()
-    if success and block.name:find("chest") then
-        local depositChest = peripheral.wrap("bottom")
-        local items = depositChest.list()
-        for slot, item in pairs(items) do
-            local placed = false
-            for _, chest in pairs(storageDB) do
-                local targetSlot = findSlotForItem(chest, item)
-                if targetSlot then
-                    depositChest.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
-                    placed = true
-                    break
-                end
-            end
-            if not placed then
-                print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
-                return false
+-- Function to pull items from the deposit chest and place them in the storage network
+local function pullItemsFromDepositChest(depositChest)
+    local items = depositChest.list()
+    for slot, item in pairs(items) do
+        local placed = false
+        for _, chest in pairs(storageDB) do
+            local targetSlot = findSlotForItem(chest, item)
+            if targetSlot then
+                depositChest.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
+                placed = true
+                break
             end
         end
-        return true
-    else
-        print("No chest detected below the turtle.")
-        return false
+        if not placed then
+            print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
+            return false
+        end
     end
+    return true
 end
 
 -- Update the item database by aggregating items from all inventories
@@ -163,10 +156,15 @@ local function main()
     scanInventories()
     while true do
         scanAndMapItems()
-        local success = pullItemsFromDepositChest()
-        if success then
-            updateDatabase()
-            displayItems()
+        local depositChest = peripheral.wrap("minecraft:chest_0")  -- Replace with the correct name of your deposit chest
+        if depositChest then
+            local success = pullItemsFromDepositChest(depositChest)
+            if success then
+                updateDatabase()
+                displayItems()
+            end
+        else
+            print("Deposit Chest not found!")
         end
         sleep(5) -- Update interval in seconds
     end
