@@ -1,8 +1,12 @@
--- Modular Storage System Program
+-- Modular Storage System with Scrolling and Filtering
 -- Written for Minecraft 1.12.2 with ComputerCraft
 
 local storageDB = {}
 local itemDB = {}
+local itemsPerPage = 10
+local currentPage = 1
+local filteredItems = {}
+local filterMode = "none" -- Options: "none", "amount", "mod"
 
 -- Scan and wrap all connected chests
 function scanInventories()
@@ -28,32 +32,76 @@ function updateDatabase()
     end
 end
 
--- Display all items in the storage system
-function displayItems()
-    print("Items in Storage:")
+-- Display a specific page of items
+function displayPage(page)
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("Items in Storage (Page " .. page .. "):")
+    
+    local startIdx = (page - 1) * itemsPerPage + 1
+    local endIdx = math.min(startIdx + itemsPerPage - 1, #filteredItems)
+    
+    for i = startIdx, endIdx do
+        local item = filteredItems[i]
+        print(i .. ". " .. item.name .. ": " .. item.count .. " items")
+    end
+
+    print("\nPress N for Next, P for Previous")
+    print("F to Filter, R to Refresh, Q to Quit")
+end
+
+-- Apply filtering
+function applyFilter()
+    filteredItems = {}
+
     for itemName, itemDetails in pairs(itemDB) do
         local total = 0
         for _, detail in ipairs(itemDetails) do
             total = total + detail.count
         end
-        print(itemName .. ": " .. total .. " items")
+
+        if filterMode == "none" then
+            table.insert(filteredItems, {name = itemName, count = total})
+        elseif filterMode == "amount" and total >= 10 then -- Example: Filter by items with >= 10 count
+            table.insert(filteredItems, {name = itemName, count = total})
+        elseif filterMode == "mod" and string.match(itemName, "modid") then -- Example: Filter by modid
+            table.insert(filteredItems, {name = itemName, count = total})
+        end
     end
 end
 
--- Retrieve an item from the storage system
-function retrieveItem(itemName, count)
-    if not itemDB[itemName] then
-        print("Item not found in storage")
-        return
-    end
+-- Handle user input for page navigation and filtering
+function handleUserInput()
+    while true do
+        local event, key = os.pullEvent("key")
 
-    local needed = count
-    for _, detail in ipairs(itemDB[itemName]) do
-        local chest = storageDB[detail.peripheral]
-        local retrieved = math.min(needed, detail.count)
-        chest.pushItems(peripheral.getName(), detail.slot, retrieved)
-        needed = needed - retrieved
-        if needed <= 0 then break end
+        if key == keys.n and currentPage * itemsPerPage < #filteredItems then
+            currentPage = currentPage + 1
+            displayPage(currentPage)
+        elseif key == keys.p and currentPage > 1 then
+            currentPage = currentPage - 1
+            displayPage(currentPage)
+        elseif key == keys.f then
+            print("Select Filter: 1. None, 2. Amount >= 10, 3. By Mod")
+            local choice = tonumber(read())
+            if choice == 1 then
+                filterMode = "none"
+            elseif choice == 2 then
+                filterMode = "amount"
+            elseif choice == 3 then
+                filterMode = "mod"
+            end
+            applyFilter()
+            currentPage = 1
+            displayPage(currentPage)
+        elseif key == keys.r then
+            updateDatabase()
+            applyFilter()
+            currentPage = 1
+            displayPage(currentPage)
+        elseif key == keys.q then
+            return
+        end
     end
 end
 
@@ -61,33 +109,9 @@ end
 function main()
     scanInventories()
     updateDatabase()
-
-    while true do
-        print("1. View Items")
-        print("2. Retrieve Item")
-        print("3. Deposit Item")
-        print("4. Refresh Database")
-        print("Enter choice:")
-        local choice = read()
-
-        if choice == "1" then
-            displayItems()
-        elseif choice == "2" then
-            print("Enter item name:")
-            local itemName = read()
-            print("Enter quantity:")
-            local count = tonumber(read())
-            retrieveItem(itemName, count)
-        elseif choice == "3" then
-            print("Deposit items by placing them in the turtle's inventory.")
-            -- Placeholder: If you're using a turtle, the deposit function would go here
-        elseif choice == "4" then
-            updateDatabase()
-            print("Database refreshed.")
-        else
-            print("Invalid choice.")
-        end
-    end
+    applyFilter()
+    displayPage(currentPage)
+    handleUserInput()
 end
 
 -- Start the main loop
