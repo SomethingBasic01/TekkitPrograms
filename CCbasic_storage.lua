@@ -1,5 +1,4 @@
--- Modular Storage System with Enhanced Debugging
--- Checking for Item Scanning and Display
+-- Modular Storage System with Enhanced Debugging and Safeguards
 
 local storageDB = {}
 local itemDB = {}
@@ -31,12 +30,13 @@ function updateDatabase()
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
             if item then
-                print("Item found: " .. item.name .. " x " .. item.count .. " in slot " .. slot)
+                local count = item.count or 0 -- Safeguard: Default to 0 if count is nil
+                print("Item found: " .. (item.name or "unknown item") .. " x " .. count .. " in slot " .. slot)
                 if not itemDB[item.name] then
                     itemDB[item.name] = {count = 0, locations = {}}
                 end
-                itemDB[item.name].count = itemDB[item.name].count + item.count
-                table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
+                itemDB[item.name].count = itemDB[item.name].count + count
+                table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = count})
             else
                 print("Slot " .. slot .. " is empty.")
             end
@@ -69,8 +69,6 @@ end
 function handleUserInput()
     while true do
         print("\n1. View Items")
-        print("2. Retrieve Item")
-        print("3. Deposit Items")
         print("R to Refresh, Q to Quit")
         local choice = read()
 
