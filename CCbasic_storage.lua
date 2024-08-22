@@ -1,4 +1,4 @@
--- Modular Storage System with Dispenser as Deposit Chest
+-- Modular Storage System with Enhanced Deposit Chest Detection
 -- Author: OpenAI ChatGPT
 
 local storageDB = {}
@@ -76,6 +76,8 @@ local function scanAndMapItems()
         if item then
             local userName = getOrAssignUserName(item)
             print("Scanned: " .. userName)
+        else
+            print("Slot " .. slot .. " is empty.")
         end
     end
 end
@@ -96,25 +98,32 @@ local function findSlotForItem(chest, item)
     return nil
 end
 
--- Function to pull items from the dispenser and place them in the storage network
-local function pullItemsFromDispenser(dispenser)
-    local items = dispenser.list()
-    for slot, item in pairs(items) do
-        local placed = false
-        for _, chest in pairs(storageDB) do
-            local targetSlot = findSlotForItem(chest, item)
-            if targetSlot then
-                dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
-                placed = true
-                break
+-- Function to pull items from the detected deposit chest and place them in the storage network
+local function pullItemsFromDepositChest()
+    local success, block = turtle.inspectDown()
+    if success and block.name:find("chest") then
+        local depositChest = peripheral.wrap("bottom")
+        local items = depositChest.list()
+        for slot, item in pairs(items) do
+            local placed = false
+            for _, chest in pairs(storageDB) do
+                local targetSlot = findSlotForItem(chest, item)
+                if targetSlot then
+                    depositChest.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
+                    placed = true
+                    break
+                end
+            end
+            if not placed then
+                print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
+                return false
             end
         end
-        if not placed then
-            print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
-            return false
-        end
+        return true
+    else
+        print("No chest detected below the turtle.")
+        return false
     end
-    return true
 end
 
 -- Update the item database by aggregating items from all inventories
@@ -154,25 +163,11 @@ local function main()
     scanInventories()
     while true do
         scanAndMapItems()
-        
-        local dispenser = nil
-        for _, name in ipairs(peripheral.getNames()) do
-            if peripheral.getType(name) == "minecraft:dispenser" then
-                dispenser = peripheral.wrap(name)
-                break
-            end
+        local success = pullItemsFromDepositChest()
+        if success then
+            updateDatabase()
+            displayItems()
         end
-        
-        if dispenser then
-            local success = pullItemsFromDispenser(dispenser)
-            if success then
-                updateDatabase()
-            end
-        else
-            print("Dispenser not found!")
-        end
-        
-        displayItems()  -- Display items only after everything else is done
         sleep(5) -- Update interval in seconds
     end
 end
