@@ -1,5 +1,5 @@
 -- Modular Storage System with Deposit Functionality
--- Written for Minecraft 1.12.2 with ComputerCraft
+-- Debugging Version
 
 local storageDB = {}
 local itemDB = {}
@@ -9,20 +9,25 @@ local filteredItems = {}
 
 -- Scan and wrap all connected inventories
 function scanInventories()
+    print("Scanning inventories...")
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
-        -- Attempt to wrap the peripheral and check if it has an inventory size
+        print("Checking peripheral: " .. name)
         local p = peripheral.wrap(name)
         if p and p.size then
             storageDB[name] = p
+            print("Found inventory: " .. name)
         end
     end
+    print("Finished scanning inventories.")
 end
 
 -- Populate database with item details
 function updateDatabase()
+    print("Updating database...")
     itemDB = {} -- Clear the database before scanning
     for name, inventory in pairs(storageDB) do
+        print("Scanning inventory: " .. name)
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
             if item and item.name then
@@ -31,9 +36,11 @@ function updateDatabase()
                 end
                 itemDB[item.name].count = itemDB[item.name].count + item.count
                 table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
+                print("Found item: " .. item.name .. " x " .. item.count)
             end
         end
     end
+    print("Finished updating database.")
 end
 
 -- Display a specific page of items
@@ -49,6 +56,7 @@ end
 
 -- Retrieve an item from the storage system
 function retrieveItem(itemName, count)
+    print("Retrieving item: " .. itemName)
     if not itemDB[itemName] then
         print("Item not found in storage")
         return
@@ -60,15 +68,18 @@ function retrieveItem(itemName, count)
         local retrieved = math.min(needed, detail.count)
         inventory.pushItems(peripheral.getName(), detail.slot, retrieved)
         needed = needed - retrieved
+        print("Retrieved " .. retrieved .. " of " .. itemName)
         if needed <= 0 then break end
     end
 end
 
 -- Deposit an item from the turtle into the storage system
 function depositItems()
+    print("Depositing items from turtle...")
     for i = 1, 16 do
         local item = turtle.getItemDetail(i)
         if item then
+            print("Depositing item: " .. item.name)
             local count = item.count
             for name, inventory in pairs(storageDB) do
                 count = count - inventory.pullItems(peripheral.getName(), i, count)
@@ -76,6 +87,7 @@ function depositItems()
             end
         end
     end
+    print("Finished depositing items.")
 end
 
 -- Handle user input for viewing, retrieving, and depositing items
@@ -111,6 +123,7 @@ end
 
 -- Main program loop
 function main()
+    print("Starting program...")
     scanInventories()
     updateDatabase()
     handleUserInput()
