@@ -1,8 +1,5 @@
--- Modular Storage System with Turtle Scanning and Direct Display Name Usage
+-- Modular Storage System with Turtle Scanning Including NBT Data
 -- Author: OpenAI ChatGPT
--- Description: This program scans items from the turtle's inventory,
--- uses their display name directly if available, deposits items into a chest below,
--- and displays aggregated inventory from all connected chests.
 
 local storageDB = {}
 local itemDB = {}
@@ -20,13 +17,23 @@ local function scanInventories()
     print("Inventories scanned: " .. tostring(#peripherals))
 end
 
+-- Function to create a unique key based on name, damage, and NBT
+local function createUniqueKey(item)
+    local baseKey = item.name .. ":" .. (item.damage or 0)
+    if item.nbt then
+        baseKey = baseKey .. ":" .. textutils.serialize(item.nbt)
+    end
+    return baseKey
+end
+
 -- Function for the turtle to scan items and add them to the database
 local function scanAndMapItems()
     for slot = 1, 16 do
         local item = turtle.getItemDetail(slot)
         if item then
+            local uniqueKey = createUniqueKey(item)
             local friendlyName = item.displayName or item.name
-            print("Scanned: " .. friendlyName)
+            print("Scanned: " .. friendlyName .. " with unique key: " .. uniqueKey)
         else
             print("Slot " .. slot .. " is empty.")
         end
@@ -56,12 +63,12 @@ local function updateDatabase()
     for _, chest in pairs(storageDB) do
         local items = chest.list()
         for slot, item in pairs(items) do
+            local uniqueKey = createUniqueKey(item)
             local friendlyName = item.displayName or item.name
-            if not itemDB[friendlyName] then
-                itemDB[friendlyName] = item.count
-            else
-                itemDB[friendlyName] = itemDB[friendlyName] + item.count
+            if not itemDB[uniqueKey] then
+                itemDB[uniqueKey] = {count = 0, name = friendlyName}
             end
+            itemDB[uniqueKey].count = itemDB[uniqueKey].count + item.count
         end
     end
 end
@@ -72,8 +79,8 @@ local function displayItems()
     term.setCursorPos(1, 1)
     print("=== Combined Items in Storage ===")
     local itemList = {}
-    for name, count in pairs(itemDB) do
-        table.insert(itemList, {name = name, count = count})
+    for _, item in pairs(itemDB) do
+        table.insert(itemList, {name = item.name, count = item.count})
     end
     table.sort(itemList, function(a, b) return a.name < b.name end)
     for _, item in ipairs(itemList) do
