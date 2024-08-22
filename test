@@ -1,22 +1,4 @@
--- Function to drop the item in the first slot into the dispenser below
-local function dropIntoDispenser()
-    turtle.select(1)
-    if turtle.getItemCount(1) > 0 then
-        local success = turtle.dropDown()  -- Drops item into the dispenser below
-        if success then
-            print("Dropped item into dispenser.")
-            return true
-        else
-            print("Failed to drop item into the dispenser. Is there a dispenser below?")
-            return false
-        end
-    else
-        print("No item in the first slot of the turtle.")
-        return false
-    end
-end
-
--- Function to move the item from the dispenser to an available slot in a connected chest
+-- Function to move items from the dispenser to an available slot in a connected chest
 local function moveItemsToChestFromDispenser()
     local dispenserName = "bottom"  -- Dispenser is directly below the turtle
 
@@ -37,6 +19,7 @@ local function moveItemsToChestFromDispenser()
     -- Move items from the dispenser to a chest in the network
     for slot, item in pairs(items) do
         for _, chestName in ipairs(peripheral.getNames()) do
+            print("Trying to push to: " .. chestName)
             if peripheral.getType(chestName) == "minecraft:chest" then
                 local transferred = dispenser.pushItems(chestName, slot)
                 if transferred > 0 then
