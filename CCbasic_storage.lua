@@ -1,11 +1,46 @@
--- Modular Storage System with Turtle Scanning and Automated Name Mapping
+-- Modular Storage System with Turtle Scanning and Deposit Chest Integration
+-- Author: OpenAI ChatGPT
+-- Description: This program scans items from the turtle's inventory,
+-- updates a name mapping, deposits items into a chest below, and displays
+-- aggregated inventory from all connected chests.
 
+-- Define global tables
 local storageDB = {}
 local itemDB = {}
-local damageToNameMap = {}  -- Initially empty, will be populated by the turtle
+local damageToNameMap = {}
+
+-- File to store the name mappings
+local nameMapFile = "nameMap.lua"
+
+-- Load existing name mappings from file
+local function loadNameMap()
+    if fs.exists(nameMapFile) then
+        local handle = fs.open(nameMapFile, "r")
+        local data = handle.readAll()
+        handle.close()
+        local func = loadstring("return " .. data)
+        if func then
+            damageToNameMap = func()
+            print("Name mappings loaded successfully.")
+        else
+            print("Error loading name mappings.")
+        end
+    else
+        print("No existing name mappings found. Starting fresh.")
+    end
+end
+
+-- Save current name mappings to file
+local function saveNameMap()
+    local handle = fs.open(nameMapFile, "w")
+    handle.write(textutils.serialize(damageToNameMap))
+    handle.close()
+    print("Name mappings saved successfully.")
+end
 
 -- Scan and wrap all connected inventories
-function scanInventories()
+local function scanInventories()
+    storageDB = {}
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
         local p = peripheral.wrap(name)
@@ -13,59 +48,93 @@ function scanInventories()
             storageDB[name] = p
         end
     end
+    print("Inventories scanned: " .. tostring(#peripherals))
 end
 
--- Function to have the turtle scan an item and update the map
-function scanAndMapItem()
-    for slot = 1, 16 do  -- Turtle has 16 slots
+-- Function for the turtle to scan items and update the name map
+local function scanAndMapItems()
+    for slot = 1, 16 do
         local item = turtle.getItemDetail(slot)
         if item then
             local key = item.name .. ":" .. (item.damage or 0)
             if not damageToNameMap[key] then
-                damageToNameMap[key] = item.name  -- Update the map with the correct name
-                print("Mapped " .. item.name .. " with damage " .. (item.damage or 0))
+                -- Attempt to get a readable name, defaulting to item.name
+                local displayName = item.displayName or item.name
+                damageToNameMap[key] = displayName
+                print("Mapped: " .. key .. " => " .. displayName)
             end
-            turtle.dropDown()  -- Drop the item into the network (assuming chest is below the turtle)
         end
     end
+    saveNameMap()
 end
 
--- Populate database with item details from all chests
-function updateDatabase()
+-- Function for the turtle to deposit items into the chest below
+local function depositItems()
+    for slot = 1, 16 do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
+            local success = turtle.dropDown()
+            if not success then
+                print("Failed to deposit items from slot " .. slot .. ". Is there a chest below?")
+                return false
+            end
+        end
+    end
+    turtle.select(1) -- Reset to slot 1
+    print("All items deposited successfully.")
+    return true
+end
+
+-- Update the item database by aggregating items from all inventories
+local function updateDatabase()
     itemDB = {}
-    for name, chest in pairs(storageDB) do
+    for _, chest in pairs(storageDB) do
         local items = chest.list()
         for slot, item in pairs(items) do
             local key = item.name .. ":" .. (item.damage or 0)
             local friendlyName = damageToNameMap[key] or item.name
-            
             if not itemDB[friendlyName] then
-                itemDB[friendlyName] = {count = 0, name = friendlyName}
+                itemDB[friendlyName] = item.count
+            else
+                itemDB[friendlyName] = itemDB[friendlyName] + item.count
             end
-            itemDB[friendlyName].count = itemDB[friendlyName].count + item.count
         end
     end
 end
 
--- Display combined items in storage
-function displayItems()
+-- Display the aggregated items neatly on the terminal
+local function displayItems()
     term.clear()
     term.setCursorPos(1, 1)
-    print("Combined Items in Storage:")
-    for _, item in pairs(itemDB) do
-        print(item.name .. ": " .. item.count)
+    print("=== Combined Items in Storage ===")
+    local itemList = {}
+    for name, count in pairs(itemDB) do
+        table.insert(itemList, {name = name, count = count})
+    end
+    table.sort(itemList, function(a, b) return a.name < b.name end)
+    for _, item in ipairs(itemList) do
+        print(string.format("%-30s : %d", item.name, item.count))
     end
 end
 
--- Main program loop with live updates and turtle scanning
-function main()
+-- Main program loop
+local function main()
+    loadNameMap()
     scanInventories()
     while true do
-        scanAndMapItem()  -- Scan items with the turtle before updating
+        scanAndMapItems()
+        local depositSuccess = depositItems()
+        if not depositSuccess then
+            print("Waiting for Deposit Chest to be available...")
+            sleep(5)
+            goto continue
+        end
         updateDatabase()
         displayItems()
-        sleep(5)  -- Update every 5 seconds
+        ::continue::
+        sleep(5) -- Update interval in seconds
     end
 end
 
+-- Run the program
 main()
