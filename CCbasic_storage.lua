@@ -76,8 +76,6 @@ local function scanAndMapItems()
         if item then
             local userName = getOrAssignUserName(item)
             print("Scanned: " .. userName)
-        else
-            print("Slot " .. slot .. " is empty.")
         end
     end
 end
@@ -156,6 +154,7 @@ local function main()
     scanInventories()
     while true do
         scanAndMapItems()
+        
         local dispenser = nil
         for _, name in ipairs(peripheral.getNames()) do
             if peripheral.getType(name) == "minecraft:dispenser" then
@@ -163,15 +162,17 @@ local function main()
                 break
             end
         end
+        
         if dispenser then
             local success = pullItemsFromDispenser(dispenser)
             if success then
                 updateDatabase()
-                displayItems()
             end
         else
             print("Dispenser not found!")
         end
+        
+        displayItems()  -- Display items only after everything else is done
         sleep(5) -- Update interval in seconds
     end
 end
