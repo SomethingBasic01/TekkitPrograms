@@ -1,4 +1,4 @@
--- Modular Storage System with Enhanced Debugging and Safeguards
+-- Modular Storage System with Comprehensive Debugging
 
 local storageDB = {}
 local itemDB = {}
@@ -30,13 +30,17 @@ function updateDatabase()
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
             if item then
-                local count = item.count or 0 -- Safeguard: Default to 0 if count is nil
-                print("Item found: " .. (item.name or "unknown item") .. " x " .. count .. " in slot " .. slot)
+                if item.count then
+                    print("Item found: " .. (item.name or "unknown item") .. " x " .. item.count .. " in slot " .. slot)
+                else
+                    print("Item found but count is nil: " .. (item.name or "unknown item") .. " in slot " .. slot)
+                    item.count = 0 -- Safeguard: Default to 0 if count is nil
+                end
                 if not itemDB[item.name] then
                     itemDB[item.name] = {count = 0, locations = {}}
                 end
-                itemDB[item.name].count = itemDB[item.name].count + count
-                table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = count})
+                itemDB[item.name].count = itemDB[item.name].count + item.count
+                table.insert(itemDB[item.name].locations, {peripheral = name, slot = slot, count = item.count})
             else
                 print("Slot " .. slot .. " is empty.")
             end
