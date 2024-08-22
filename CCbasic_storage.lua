@@ -1,4 +1,5 @@
--- Modular Storage System with Explicit Debugging
+-- Modular Storage System with Enhanced Debugging
+-- Checking for Item Scanning and Display
 
 local storageDB = {}
 local itemDB = {}
@@ -30,7 +31,7 @@ function updateDatabase()
         for slot = 1, inventory.size() do
             local item = inventory.getItem(slot)
             if item then
-                print("Item found: ".. item.name .. " x " .. item.count .. " in slot " .. slot)
+                print("Item found: " .. item.name .. " x " .. item.count .. " in slot " .. slot)
                 if not itemDB[item.name] then
                     itemDB[item.name] = {count = 0, locations = {}}
                 end
@@ -41,7 +42,10 @@ function updateDatabase()
             end
         end
     end
-    print("Finished updating database.")
+    print("Finished updating database. Items found:")
+    for itemName, itemDetails in pairs(itemDB) do
+        print(itemName .. ": " .. itemDetails.count .. " items")
+    end
 end
 
 -- Display items in storage
@@ -61,46 +65,6 @@ function displayItems()
     end
 end
 
--- Retrieve an item from the storage system
-function retrieveItem(itemName, count)
-    print("Retrieving item: " .. itemName)
-    if not itemDB[itemName] then
-        print("Item not found in storage")
-        return
-    end
-
-    local needed = count
-    for _, detail in ipairs(itemDB[itemName].locations) do
-        local inventory = storageDB[detail.peripheral]
-        if inventory then
-            local retrieved = math.min(needed, detail.count)
-            inventory.pushItems(peripheral.getName(), detail.slot, retrieved)
-            needed = needed - retrieved
-            print("Retrieved " .. retrieved .. " of " .. itemName)
-            if needed <= 0 then break end
-        end
-    end
-end
-
--- Deposit an item from the turtle into the storage system
-function depositItems()
-    print("Depositing items from turtle...")
-    for i = 1, 16 do
-        local item = turtle.getItemDetail(i)
-        if item then
-            print("Depositing item: " .. item.name)
-            local count = item.count
-            for name, inventory in pairs(storageDB) do
-                if inventory then
-                    count = count - inventory.pullItems(peripheral.getName(), i, count)
-                    if count <= 0 then break end
-                end
-            end
-        end
-    end
-    print("Finished depositing items.")
-end
-
 -- Handle user input for viewing, retrieving, and depositing items
 function handleUserInput()
     while true do
@@ -112,16 +76,7 @@ function handleUserInput()
 
         if choice == "1" then
             displayItems()
-        elseif choice == "2" then
-            print("Enter item name:")
-            local itemName = read()
-            print("Enter quantity:")
-            local count = tonumber(read())
-            retrieveItem(itemName, count)
-        elseif choice == "3" then
-            depositItems()
-            print("Items deposited.")
-        elseif choice:lower() == "r" then
+        elseif choice == "r" then
             updateDatabase()
             print("Database refreshed.")
         elseif choice:lower() == "q" then
