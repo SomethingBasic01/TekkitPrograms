@@ -27,7 +27,7 @@ local function moveItemToChest(dispenserName)
     end
 
     for slot, item in pairs(items) do
-        -- Look for a chest in the network
+        -- Look for a chest in the network by its simpler peripheral name
         for _, name in ipairs(peripheral.getNames()) do
             if peripheral.getType(name) == "minecraft:chest" then
                 local chest = peripheral.wrap(name)
