@@ -1,18 +1,66 @@
--- Function to move items from the dispenser below to any chest on the network
-local function moveItemsToChest()
-    local dispenserName = "bottom"  -- Assuming the dispenser is directly below the turtle
-    local chestName = "right"  -- Assuming the chest is on the right side of the turtle or adjust as necessary
-    
-    -- Pull all items from the dispenser below
-    for slot = 1, 16 do
-        local pulled = turtle.suckDown()  -- Pull items from the dispenser into the turtle's inventory
-        if pulled then
-            print("Pulled item from dispenser.")
-            -- Now push the item into the connected chest
-            turtle.push(chestName)  -- Push items into the chest on the network
+-- Function to drop the item in the first slot into the dispenser below
+local function dropIntoDispenser()
+    turtle.select(1)
+    if turtle.getItemCount(1) > 0 then
+        local success = turtle.dropDown()  -- Drops item into the dispenser below
+        if success then
+            print("Dropped item into dispenser.")
+            return true
+        else
+            print("Failed to drop item into the dispenser. Is there a dispenser below?")
+            return false
         end
+    else
+        print("No item in the first slot of the turtle.")
+        return false
     end
 end
 
--- Run the function
-moveItemsToChest()
+-- Function to move the item from the dispenser to an available slot in a connected chest
+local function moveItemsToChestFromDispenser()
+    local dispenserName = "bottom"  -- Dispenser is directly below the turtle
+
+    -- Wrap the dispenser
+    local dispenser = peripheral.wrap(dispenserName)
+    if not dispenser then
+        print("Dispenser not found!")
+        return false
+    end
+
+    -- Check for items in the dispenser
+    local items = dispenser.list()
+    if not items or next(items) == nil then
+        print("No items found in the dispenser.")
+        return false
+    end
+
+    -- Move items from the dispenser to a chest in the network
+    for slot, item in pairs(items) do
+        for _, chestName in ipairs(peripheral.getNames()) do
+            if peripheral.getType(chestName) == "minecraft:chest" then
+                local transferred = dispenser.pushItems(chestName, slot)
+                if transferred > 0 then
+                    print("Transferred " .. transferred .. " items to chest: " .. chestName)
+                    return true
+                else
+                    print("Failed to transfer items to chest: " .. chestName)
+                end
+            end
+        end
+    end
+
+    print("No chest found or failed to transfer items.")
+    return false
+end
+
+-- Main function
+local function main()
+    -- Drop the item into the dispenser
+    if dropIntoDispenser() then
+        -- Move the items from the dispenser to a chest
+        moveItemsToChestFromDispenser()
+    end
+end
+
+-- Run the program
+main()
