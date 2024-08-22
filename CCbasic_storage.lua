@@ -12,7 +12,7 @@ local filterMode = "none" -- Options: "none", "amount"
 function scanInventories()
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
-        if peripheral.hasType(name, "inventory") then
+        if peripheral.getType(name) == "minecraft:chest" or peripheral.getType(name) == "inventory" then
             storageDB[name] = peripheral.wrap(name)
         end
     end
