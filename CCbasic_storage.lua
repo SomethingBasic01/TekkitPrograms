@@ -1,5 +1,4 @@
 -- Modular Storage System with Dispenser as Deposit Chest
--- Author: OpenAI ChatGPT
 
 local storageDB = {}
 local itemDB = {}
