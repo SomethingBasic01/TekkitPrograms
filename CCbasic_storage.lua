@@ -1,19 +1,8 @@
--- Modular Storage System with Live Updates
+-- Modular Storage System with Turtle Scanning and Automated Name Mapping
 
 local storageDB = {}
 local itemDB = {}
-
--- A table to map damage values to friendly names for stone variants
-local damageToNameMap = {
-    ["minecraft:stone:0"] = "Stone",
-    ["minecraft:stone:1"] = "Granite",
-    ["minecraft:stone:2"] = "Polished Granite",
-    ["minecraft:stone:3"] = "Diorite",
-    ["minecraft:stone:4"] = "Polished Diorite",
-    ["minecraft:stone:5"] = "Andesite",
-    ["minecraft:stone:6"] = "Polished Andesite",
-    -- Add more mappings as needed
-}
+local damageToNameMap = {}  -- Initially empty, will be populated by the turtle
 
 -- Scan and wrap all connected inventories
 function scanInventories()
@@ -26,14 +15,29 @@ function scanInventories()
     end
 end
 
+-- Function to have the turtle scan an item and update the map
+function scanAndMapItem()
+    for slot = 1, 16 do  -- Turtle has 16 slots
+        local item = turtle.getItemDetail(slot)
+        if item then
+            local key = item.name .. ":" .. (item.damage or 0)
+            if not damageToNameMap[key] then
+                damageToNameMap[key] = item.name  -- Update the map with the correct name
+                print("Mapped " .. item.name .. " with damage " .. (item.damage or 0))
+            end
+            turtle.dropDown()  -- Drop the item into the network (assuming chest is below the turtle)
+        end
+    end
+end
+
 -- Populate database with item details from all chests
 function updateDatabase()
     itemDB = {}
     for name, chest in pairs(storageDB) do
         local items = chest.list()
         for slot, item in pairs(items) do
-            local key = item.name .. ":" .. (item.damage or 0)  -- Create a unique key for each item type
-            local friendlyName = damageToNameMap[key] or item.name  -- Get the friendly name if available
+            local key = item.name .. ":" .. (item.damage or 0)
+            local friendlyName = damageToNameMap[key] or item.name
             
             if not itemDB[friendlyName] then
                 itemDB[friendlyName] = {count = 0, name = friendlyName}
@@ -53,10 +57,11 @@ function displayItems()
     end
 end
 
--- Main program loop with live updates
+-- Main program loop with live updates and turtle scanning
 function main()
     scanInventories()
     while true do
+        scanAndMapItem()  -- Scan items with the turtle before updating
         updateDatabase()
         displayItems()
         sleep(5)  -- Update every 5 seconds
