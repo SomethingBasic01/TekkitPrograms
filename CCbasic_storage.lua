@@ -1,7 +1,19 @@
--- Modular Storage System
+-- Modular Storage System with Name Mapping
 
 local storageDB = {}
 local itemDB = {}
+
+-- A table to map damage values to friendly names for stone variants
+local damageToNameMap = {
+    ["minecraft:stone:0"] = "Stone",
+    ["minecraft:stone:1"] = "Granite",
+    ["minecraft:stone:2"] = "Polished Granite",
+    ["minecraft:stone:3"] = "Diorite",
+    ["minecraft:stone:4"] = "Polished Diorite",
+    ["minecraft:stone:5"] = "Andesite",
+    ["minecraft:stone:6"] = "Polished Andesite",
+    -- Add more mappings as needed
+}
 
 -- Scan and wrap all connected inventories
 function scanInventories()
@@ -21,10 +33,12 @@ function updateDatabase()
         local items = chest.list()
         for slot, item in pairs(items) do
             local key = item.name .. ":" .. (item.damage or 0)  -- Create a unique key for each item type
-            if not itemDB[key] then
-                itemDB[key] = {count = 0, name = item.name, damage = item.damage}
+            local friendlyName = damageToNameMap[key] or item.name  -- Get the friendly name if available
+            
+            if not itemDB[friendlyName] then
+                itemDB[friendlyName] = {count = 0, name = friendlyName}
             end
-            itemDB[key].count = itemDB[key].count + item.count
+            itemDB[friendlyName].count = itemDB[friendlyName].count + item.count
         end
     end
 end
@@ -35,7 +49,7 @@ function displayItems()
     term.setCursorPos(1, 1)
     print("Combined Items in Storage:")
     for _, item in pairs(itemDB) do
-        print(item.name .. " (Damage: " .. (item.damage or 0) .. "): " .. item.count)
+        print(item.name .. ": " .. item.count)
     end
 end
 
