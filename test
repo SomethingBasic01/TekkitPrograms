@@ -1,39 +1,51 @@
-local chestName, dispenserName
+local chestNames = {}
+local dispenserName
 
 -- Scan and find peripherals dynamically
 local function findPeripherals()
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
         if name:find("minecraft:chest") then
-            chestName = name
+            table.insert(chestNames, name)
         elseif name:find("minecraft:dispenser") then
             dispenserName = name
         end
     end
 end
 
+-- Function to try and push items into a chest
+local function tryPushToChest(dispenser, slot, count)
+    for _, chestName in ipairs(chestNames) do
+        local chest = peripheral.wrap(chestName)
+        if chest then
+            local moved = dispenser.pushItems(peripheral.getName(chest), slot, count)
+            if moved > 0 then
+                print("Moved " .. moved .. " items from dispenser to " .. chestName)
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- Function to transfer items from dispenser to chest
 local function transferItems()
-    if dispenserName and chestName then
+    if dispenserName then
         local dispenser = peripheral.wrap(dispenserName)
-        local chest = peripheral.wrap(chestName)
-
-        if dispenser and chest then
+        
+        if dispenser then
             -- Iterate through the dispenser slots
             for slot, item in pairs(dispenser.list()) do
-                -- Try to push the items to the chest
-                local moved = dispenser.pushItems(peripheral.getName(chest), slot)
-                if moved == 0 then
-                    print("Failed to move item from dispenser to chest.")
-                else
-                    print("Moved " .. moved .. " items from dispenser to chest.")
+                local success = tryPushToChest(dispenser, slot, item.count)
+                if not success then
+                    print("Failed to move item from dispenser to any chest. All chests might be full.")
                 end
             end
         else
-            print("Failed to wrap either dispenser or chest.")
+            print("Failed to wrap the dispenser.")
         end
     else
-        print("Dispenser or chest not found.")
+        print("Dispenser not found.")
     end
 end
 
@@ -42,8 +54,8 @@ local function main()
     findPeripherals()
 
     -- Check if the peripherals are found
-    if chestName and dispenserName then
-        print("Chest found: " .. chestName)
+    if #chestNames > 0 and dispenserName then
+        print("Chests found: " .. table.concat(chestNames, ", "))
         print("Dispenser found: " .. dispenserName)
         transferItems()
     else
