@@ -98,6 +98,22 @@ local function depositItems(dispenser)
     return true
 end
 
+-- Function to find an appropriate slot for the item in the storage system
+local function findSlotForItem(chest, item)
+    local items = chest.list()
+    for slot, storedItem in pairs(items) do
+        if storedItem.name == item.name and storedItem.damage == item.damage and (not storedItem.nbt or storedItem.nbt == item.nbt) then
+            return slot
+        end
+    end
+    for slot = 1, chest.size() do
+        if not items[slot] then
+            return slot
+        end
+    end
+    return nil
+end
+
 -- Function to pull items from the dispenser and place them in the storage network
 local function pullItemsFromDispenser(dispenser)
     local items = dispenser.list()
@@ -150,11 +166,22 @@ local function displayItems()
     end
 end
 
--- Continuous background function to pull items from dispenser and store them in the network
-local function backgroundPullFromDispenser(dispenser)
+-- Background function to continually handle items in the dispenser
+local function backgroundTask(dispenser)
     while true do
-        pullItemsFromDispenser(dispenser)
-        sleep(1)
+        scanAndMapItems()
+        local depositSuccess = depositItems(dispenser)
+        if not depositSuccess then
+            print("Waiting for Dispenser to be available...")
+            sleep(5)
+        else
+            local pullSuccess = pullItemsFromDispenser(dispenser)
+            if pullSuccess then
+                updateDatabase()
+                displayItems()
+            end
+        end
+        sleep(5) -- Update interval in seconds
     end
 end
 
@@ -177,21 +204,8 @@ local function main()
         return
     end
 
-    -- Start the background function to pull items from the dispenser
-    parallel.start(function() backgroundPullFromDispenser(dispenser) end)
-
-    while true do
-        scanAndMapItems()
-        local depositSuccess = depositItems(dispenser)
-        if not depositSuccess then
-            print("Waiting for Dispenser to be available...")
-            sleep(5)
-        else
-            updateDatabase()
-            displayItems()
-        end
-        sleep(5) -- Update interval in seconds
-    end
+    -- Start the background task for the dispenser
+    backgroundTask(dispenser)
 end
 
 -- Run the program
