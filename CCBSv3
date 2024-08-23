@@ -1,4 +1,5 @@
--- Modular Storage System with Dispenser as Deposit Chest
+-- Modular Storage System with Dispenser Below Turtle
+-- Author: OpenAI ChatGPT
 
 local storageDB = {}
 local itemDB = {}
@@ -60,12 +61,9 @@ local function scanInventories()
     storageDB = {}
     local peripherals = peripheral.getNames()
     for _, name in ipairs(peripherals) do
-        print("Checking peripheral: " .. name) -- Debugging statement
         local p = peripheral.wrap(name)
         if p and p.list then
             storageDB[name] = p
-        else
-            print("Peripheral " .. name .. " does not have a list method or failed to wrap.") -- Debugging statement
         end
     end
     print("Inventories scanned: " .. tostring(#peripherals))
@@ -84,63 +82,14 @@ local function scanAndMapItems()
     end
 end
 
--- Function for the turtle to deposit items into the dispenser (acting as deposit chest)
-local function depositItems(dispenser)
+-- Function to drop items into the dispenser below the turtle
+local function dropItemsIntoDispenser()
     for slot = 1, 16 do
-        turtle.select(slot)
         if turtle.getItemCount(slot) > 0 then
-            local success = turtle.dropDown()  -- Assuming the dispenser is below the turtle
-            if not success then
-                print("Failed to deposit items from slot " .. slot .. ". Is there a dispenser below?")
-                return false
-            end
+            turtle.select(slot)
+            turtle.dropDown()
         end
     end
-    turtle.select(1) -- Reset to slot 1
-    print("All items deposited successfully.")
-    return true
-end
-
--- Function to find an appropriate slot for the item in the storage system
-local function findSlotForItem(chest, item)
-    local items = chest.list()
-    for slot, storedItem in pairs(items) do
-        if storedItem.name == item.name and storedItem.damage == item.damage and (not storedItem.nbt or storedItem.nbt == item.nbt) then
-            return slot
-        end
-    end
-    for slot = 1, chest.size() do
-        if not items[slot] then
-            return slot
-        end
-    end
-    return nil
-end
-
--- Function to pull items from the dispenser and place them in the storage network
-local function pullItemsFromDispenser(dispenser)
-    local items = dispenser.list()
-    for slot, item in pairs(items) do
-        local placed = false
-        for _, chest in pairs(storageDB) do
-            local targetSlot = findSlotForItem(chest, item)
-            if targetSlot then
-                local success = dispenser.pushItems(peripheral.getName(chest), slot, item.count, targetSlot)
-                if success then
-                    print("Successfully transferred " .. item.name .. " to " .. peripheral.getName(chest) .. " slot " .. targetSlot) -- Debugging statement
-                else
-                    print("Failed to transfer " .. item.name .. " to " .. peripheral.getName(chest) .. " slot " .. targetSlot) -- Debugging statement
-                end
-                placed = true
-                break
-            end
-        end
-        if not placed then
-            print("No available slots for " .. (userNamesMap[createUniqueKey(item)] or item.name) .. ". More storage needed!")
-            return false
-        end
-    end
-    return true
 end
 
 -- Update the item database by aggregating items from all inventories
@@ -174,49 +123,17 @@ local function displayItems()
     end
 end
 
--- Background function to continually handle items in the dispenser
-local function backgroundTask(dispenser)
-    while true do
-        scanAndMapItems()
-        local depositSuccess = depositItems(dispenser)
-        if not depositSuccess then
-            print("Waiting for Dispenser to be available...")
-            sleep(5)
-        else
-            local pullSuccess = pullItemsFromDispenser(dispenser)
-            if pullSuccess then
-                updateDatabase()
-                displayItems()
-            end
-        end
-        sleep(5) -- Update interval in seconds
-    end
-end
-
 -- Main program loop
 local function main()
     loadNameMap()
     scanInventories()
-
-    -- Find the dispenser in the network
-    local dispenser = nil
-    for _, name in ipairs(peripheral.getNames()) do
-        print("Checking peripheral: " .. name) -- Debugging statement
-        if peripheral.getType(name) == "minecraft:dispenser" then
-            dispenser = peripheral.wrap(name)
-            break
-        end
+    while true do
+        scanAndMapItems()
+        dropItemsIntoDispenser()
+        updateDatabase()
+        displayItems()
+        sleep(5) -- Update interval in seconds
     end
-
-    if not dispenser then
-        print("Dispenser not found!")
-        return
-    else
-        print("Dispenser found: " .. peripheral.getName(dispenser)) -- Debugging statement
-    end
-
-    -- Start the background task for the dispenser
-    backgroundTask(dispenser)
 end
 
 -- Run the program
