@@ -1,9 +1,10 @@
--- Modular Storage System with Enhanced GUI
+-- Modular Storage System with Enhanced GUI and Pagination
 -- Author: OpenAI ChatGPT
 
 local storageDB = {}
 local itemDB = {}
 local userNamesMap = {}
+local itemsPerPage = 10  -- Number of items to display per page
 
 -- File to store the user-defined names
 local nameMapFile = "userNamesMap.lua"
@@ -111,21 +112,45 @@ local function updateDatabase()
     end
 end
 
--- Display the aggregated items neatly on the terminal
+-- Display the aggregated items neatly on the terminal with pagination
 local function displayItems()
-    term.clear()
-    term.setCursorPos(1, 1)
-    print("=== Combined Items in Storage ===")
-    local itemList = {}
-    for name, count in pairs(itemDB) do
-        table.insert(itemList, {name = name, count = count})
+    local currentPage = 1
+    local totalItems = #itemDB
+    local totalPages = math.ceil(totalItems / itemsPerPage)
+
+    while true do
+        term.clear()
+        term.setCursorPos(1, 1)
+        print("=== Combined Items in Storage ===")
+        
+        local itemList = {}
+        for name, count in pairs(itemDB) do
+            table.insert(itemList, {name = name, count = count})
+        end
+        table.sort(itemList, function(a, b) return a.name < b.name end)
+
+        local startIndex = (currentPage - 1) * itemsPerPage + 1
+        local endIndex = math.min(startIndex + itemsPerPage - 1, totalItems)
+
+        for i = startIndex, endIndex do
+            local item = itemList[i]
+            if item then
+                print(string.format("%-30s : %d", item.name, item.count))
+            end
+        end
+
+        print(string.format("\nPage %d/%d", currentPage, totalPages))
+        print("Press [N] for Next page, [P] for Previous page, [Q] to quit.")
+
+        local event, key = os.pullEvent("key")
+        if key == keys.n and currentPage < totalPages then
+            currentPage = currentPage + 1
+        elseif key == keys.p and currentPage > 1 then
+            currentPage = currentPage - 1
+        elseif key == keys.q then
+            break
+        end
     end
-    table.sort(itemList, function(a, b) return a.name < b.name end)
-    for _, item in ipairs(itemList) do
-        print(string.format("%-30s : %d", item.name, item.count))
-    end
-    print("\nPress any key to return to the main menu.")
-    os.pullEvent("key")  -- Wait for key press
 end
 
 -- Main menu to navigate between different modes
