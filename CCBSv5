@@ -1,5 +1,4 @@
 -- Modular Storage System with Enhanced GUI and Pagination
--- Author: OpenAI ChatGPT
 
 local storageDB = {}
 local itemDB = {}
