@@ -58,6 +58,17 @@ local function getOrAssignUserName(item)
     return userNamesMap[uniqueKey]
 end
 
+-- Find the dispenser peripheral
+local function findDispenser()
+    local peripherals = peripheral.getNames()
+    for _, name in ipairs(peripherals) do
+        if name:find("minecraft:dispenser") then
+            dispenserName = name
+            break
+        end
+    end
+end
+
 -- Scan and wrap all connected inventories, excluding the dispenser
 local function scanInventories()
     storageDB = {}
