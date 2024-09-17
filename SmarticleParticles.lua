@@ -1,4 +1,3 @@
--- Find the particle peripheral
 local particle = peripheral.find("particle")
 
 if not particle then
@@ -6,11 +5,9 @@ if not particle then
     return
 end
 
--- Data structure to store particles
 local particles = {}
 local running = false
 
--- Function to save multiple configurations
 local function saveConfiguration()
     print("Enter a name for this configuration:")
     local configName = read()
@@ -21,7 +18,6 @@ local function saveConfiguration()
     print("Configuration '" .. configName .. "' saved.")
 end
 
--- Function to load a specific configuration
 local function loadConfiguration(configName)
     if fs.exists(configName .. ".txt") then
         local file = fs.open(configName .. ".txt", "r")
@@ -35,7 +31,6 @@ local function loadConfiguration(configName)
     end
 end
 
--- Function to save the default configuration name for auto-loading
 local function saveDefaultConfigName(configName)
     local file = fs.open("default_config.txt", "w")
     file.write(configName)
@@ -43,7 +38,6 @@ local function saveDefaultConfigName(configName)
     print("Default configuration '" .. configName .. "' set for auto-load on launch.")
 end
 
--- Function to get the default configuration name from the file
 local function getDefaultConfigName()
     if fs.exists("default_config.txt") then
         local file = fs.open("default_config.txt", "r")
@@ -55,7 +49,6 @@ local function getDefaultConfigName()
     end
 end
 
--- Function to add a new particle
 local function addParticle()
     print("Enter a unique ID for this particle:")
     local id = read()
@@ -91,7 +84,6 @@ local function addParticle()
     print("Particle " .. id .. " added.")
 end
 
--- Function to edit a specific property of an existing particle
 local function editParticle()
     print("Enter the ID of the particle to edit:")
     local id = read()
@@ -135,7 +127,6 @@ local function editParticle()
     end
 end
 
--- Function to delete a particle
 local function deleteParticle()
     print("Enter the ID of the particle to delete:")
     local id = read()
@@ -147,7 +138,6 @@ local function deleteParticle()
     end
 end
 
--- Function to spawn particles based on the configuration
 local function spawnParticles()
     while true do
         if running then
@@ -161,7 +151,6 @@ local function spawnParticles()
     end
 end
 
--- Function to display the menu
 local function displayMenu()
     print("\nParticle Controller Menu")
     print("1. Add Particle")
@@ -176,7 +165,6 @@ local function displayMenu()
     print("Enter a choice (1-9):")
 end
 
--- Function to manage particles
 local function manageParticles()
     while true do
         displayMenu()
@@ -215,12 +203,10 @@ local function manageParticles()
     end
 end
 
--- Auto-load the default configuration if set
 local defaultConfig = getDefaultConfigName()
 if defaultConfig and loadConfiguration(defaultConfig) then
     running = true
     print("Auto-spawning started with configuration '" .. defaultConfig .. "'.")
 end
 
--- Run the particle spawner and management interface in parallel
 parallel.waitForAny(spawnParticles, manageParticles)
