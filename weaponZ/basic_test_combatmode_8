@@ -1,4 +1,4 @@
--- Initialization
+---- Initialization
 local fuelThreshold = 200  -- Minimum fuel level before refueling
 
 -- Inventory Slots Configuration
@@ -185,18 +185,26 @@ function detectAndAttackEntities()
 
         print("DEBUG: Rounded Target Coordinates: X=" .. targetX .. " Y=" .. targetY .. " Z=" .. targetZ)
 
-        moveToTarget(targetX, targetY, targetZ)
+        -- Check the distance to the target
+        local distance = math.sqrt((targetX - currentX)^2 + (targetY - currentY)^2 + (targetZ - currentZ)^2)
 
-        if not ensureEquipped(slots.sword, "minecraft:diamond_sword", "right") then
-            print("ERROR: Failed to equip sword.")
-            return false
-        end
+        -- If within 1 block, equip the sword and attack
+        if distance <= 1 then
+            print("DEBUG: Target within 1 block. Preparing to attack.")
+            if not ensureEquipped(slots.sword, "minecraft:diamond_sword", "right") then
+                print("ERROR: Failed to equip sword.")
+                return false
+            end
 
-        if turtle.attack() then
-            print("DEBUG: Attacked entity: " .. targetEntity.name)
-            return true
+            if turtle.attack() then
+                print("DEBUG: Attacked entity: " .. targetEntity.name)
+                return true
+            else
+                print("DEBUG: Attack failed, entity out of range or blocked.")
+            end
         else
-            print("DEBUG: Attack failed, entity out of range or blocked.")
+            print("DEBUG: Target further than 1 block. Moving closer.")
+            moveToTarget(targetX, targetY, targetZ)
         end
     end
 end
