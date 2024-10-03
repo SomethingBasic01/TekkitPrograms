@@ -54,15 +54,22 @@ function ensureEquipped(slot, expectedType, side)
     return true
 end
 
--- Function to locate a specific item in the inventory
-function findSlot(itemName)
-    for i = 1, 16 do
-        local detail = turtle.getItemDetail(i)
-        if detail and detail.name:find(itemName) then
-            return i
+-- Function to unequip peripherals if necessary
+function unequipPeripheral(side)
+    if peripheral.isPresent(side) then
+        if side == "left" then
+            if not turtle.equipLeft() then
+                print("ERROR: Failed to unequip peripheral from left side.")
+                return false
+            end
+        elseif side == "right" then
+            if not turtle.equipRight() then
+                print("ERROR: Failed to unequip peripheral from right side.")
+                return false
+            end
         end
     end
-    return nil
+    return true
 end
 
 -- Function to detect entities using the Plethora sensor and pathfind to them
@@ -146,6 +153,10 @@ function detectAndAttackEntities()
                 return false
             end
         end
+
+        -- Unequip any peripheral to equip the sword
+        unequipPeripheral("right")
+        unequipPeripheral("left")
 
         -- Equip the sword and attempt to attack
         turtle.select(slots.sword)
