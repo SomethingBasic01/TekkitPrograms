@@ -5,7 +5,7 @@ local fuelThreshold = 200  -- Minimum fuel level before refueling
 local slots = {
     coal = 1,
     entitySensor = 2,
-    blockSensor = 3,
+    blockScanner = 3,
     pickaxe = 4,
     sword = 5
 }
@@ -33,6 +33,26 @@ function refuelIfNeeded()
         else
             print("WARNING: Out of fuel! Unable to proceed.")
             return false
+        end
+    end
+    return true
+end
+
+-- Function to equip a peripheral to a specific side if not already equipped
+function ensureEquipped(slot, expectedType, side)
+    if not peripheral.isPresent(side) or peripheral.getType(side) ~= expectedType then
+        print("Equipping " .. expectedType .. " from slot " .. slot .. " to " .. side)
+        turtle.select(slot)
+        if side == "left" then
+            if not turtle.equipLeft() then
+                print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot .. " to left side.")
+                return false
+            end
+        elseif side == "right" then
+            if not turtle.equipRight() then
+                print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot .. " to right side.")
+                return false
+            end
         end
     end
     return true
