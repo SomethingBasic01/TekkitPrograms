@@ -1,0 +1,229 @@
+-- Initialization
+local fuelThreshold = 200  -- Minimum fuel level before refueling
+
+-- Inventory Slots Configuration
+local slots = {
+    coal = 1,
+    entitySensor = 2,
+    blockSensor = 3,
+    pickaxe = 4,
+    sword = 5
+}
+
+-- Whitelist of entities to ignore (passive mobs)
+local whitelist = {
+    ["minecraft:cow"] = true,
+    ["minecraft:sheep"] = true,
+    ["minecraft:chicken"] = true,
+    ["minecraft:pig"] = true,
+}
+
+-- Variables to track turtle's current position and direction
+local currentX, currentY, currentZ = 0, 0, 0
+local currentFacing = "north"  -- Default starting facing direction
+
+-- Function to refuel the turtle
+function refuelIfNeeded()
+    if turtle.getFuelLevel() < fuelThreshold then
+        turtle.select(slots.coal)
+        if turtle.refuel(0) then  -- Check if this slot has fuel
+            turtle.refuel()
+            print("Refueled with slot " .. slots.coal)
+            return true
+        else
+            print("WARNING: Out of fuel! Unable to proceed.")
+            return false
+        end
+    end
+    return true
+end
+
+-- Function to track the turtle's movement and update coordinates
+function updatePosition(movement)
+    if movement == "forward" then
+        if currentFacing == "north" then
+            currentZ = currentZ - 1
+        elseif currentFacing == "south" then
+            currentZ = currentZ + 1
+        elseif currentFacing == "east" then
+            currentX = currentX + 1
+        elseif currentFacing == "west" then
+            currentX = currentX - 1
+        end
+    elseif movement == "backward" then
+        if currentFacing == "north" then
+            currentZ = currentZ + 1
+        elseif currentFacing == "south" then
+            currentZ = currentZ - 1
+        elseif currentFacing == "east" then
+            currentX = currentX - 1
+        elseif currentFacing == "west" then
+            currentX = currentX + 1
+        end
+    elseif movement == "up" then
+        currentY = currentY + 1
+    elseif movement == "down" then
+        currentY = currentY - 1
+    end
+end
+
+-- Function to rotate and adjust the facing direction
+function adjustFacing(turn)
+    if turn == "left" then
+        if currentFacing == "north" then
+            currentFacing = "west"
+        elseif currentFacing == "west" then
+            currentFacing = "south"
+        elseif currentFacing == "south" then
+            currentFacing = "east"
+        elseif currentFacing == "east" then
+            currentFacing = "north"
+        end
+    elseif turn == "right" then
+        if currentFacing == "north" then
+            currentFacing = "east"
+        elseif currentFacing == "east" then
+            currentFacing = "south"
+        elseif currentFacing == "south" then
+            currentFacing = "west"
+        elseif currentFacing == "west" then
+            currentFacing = "north"
+        end
+    end
+end
+
+-- Function to move forward with obstacle handling and update position
+function moveForwardWithObstacleHandling()
+    if not turtle.forward() then
+        if turtle.detect() then
+            print("Obstacle detected. Attempting to dig.")
+            turtle.dig()
+            if not turtle.forward() then
+                print("Failed to move forward after digging.")
+            end
+        else
+            print("Unable to move forward due to an unknown issue.")
+        end
+    else
+        updatePosition("forward")
+    end
+end
+
+-- Function to detect entities using the Plethora sensor and pathfind to them
+function detectAndAttackEntities()
+    -- Ensure the entity sensor is equipped on the left side
+    if not ensureEquipped(slots.entitySensor, "plethora:sensor", "left") then
+        print("Cannot detect entities without sensor.")
+        return false
+    end
+
+    local sensor = peripheral.wrap("left")  -- Wrap the sensor on the left side
+    if not sensor then
+        print("Sensor not found.")
+        return false
+    end
+
+    while true do
+        local entities = sensor.sense()  -- Detect all nearby entities
+        local targetEntity = nil
+
+        -- Find the first non-whitelisted entity
+        for _, entity in pairs(entities) do
+            if not whitelist[entity.name] then
+                targetEntity = entity
+                break
+            end
+        end
+
+        if not targetEntity then
+            print("No hostile entities found.")
+            return false
+        end
+
+        print("Hostile entity detected: " .. targetEntity.name)
+
+        -- Update the target's coordinates
+        local targetX, targetY, targetZ = targetEntity.x, targetEntity.y, targetEntity.z
+
+        -- Calculate the path to the target and move towards it
+        moveToTarget(targetX, targetY, targetZ)
+
+        -- Equip the sword to the right side and attempt to attack
+        if not ensureEquipped(slots.sword, "minecraft:diamond_sword", "right") then
+            print("Failed to equip sword.")
+            return false
+        end
+
+        if turtle.attack() then
+            print("Attacked entity: " .. targetEntity.name)
+            return true
+        else
+            print("Attack failed, entity out of range or blocked.")
+        end
+    end
+end
+
+-- Function to move towards the target coordinates
+function moveToTarget(targetX, targetY, targetZ)
+    -- Move along the Y-axis first
+    while currentY ~= targetY do
+        if currentY < targetY then
+            if turtle.up() then
+                updatePosition("up")
+            end
+        elseif currentY > targetY then
+            if turtle.down() then
+                updatePosition("down")
+            end
+        end
+    end
+
+    -- Move along the X-axis
+    while currentX ~= targetX do
+        if currentX < targetX then
+            faceDirection("east")
+            moveForwardWithObstacleHandling()
+        elseif currentX > targetX then
+            faceDirection("west")
+            moveForwardWithObstacleHandling()
+        end
+    end
+
+    -- Move along the Z-axis
+    while currentZ ~= targetZ do
+        if currentZ < targetZ then
+            faceDirection("south")
+            moveForwardWithObstacleHandling()
+        elseif currentZ > targetZ then
+            faceDirection("north")
+            moveForwardWithObstacleHandling()
+        end
+    end
+end
+
+-- Function to face a specific direction
+function faceDirection(direction)
+    while currentFacing ~= direction do
+        turtle.turnRight()
+        adjustFacing("right")
+    end
+end
+
+-- Main function to run the turtle operations
+function main()
+    refuelIfNeeded()
+
+    -- Detect and attack entities using improved pathfinding logic
+    print("Entering combat mode.")
+    local foundAndAttacked = detectAndAttackEntities()
+    if foundAndAttacked then
+        print("Hostile entity neutralized.")
+    else
+        print("No entities left or target lost.")
+    end
+
+    print("Operation complete.")
+end
+
+-- Run the main function
+main()
