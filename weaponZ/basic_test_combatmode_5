@@ -100,34 +100,38 @@ function detectAndAttackEntities()
 
         -- Improved pathfinding logic to approach the entity
         while true do
-            -- Check if the target is close enough to attack
-            if math.abs(targetEntity.x) <= 1 and math.abs(targetEntity.z) <= 1 then
+            -- Calculate distances to the target on x and z axes
+            local distanceX = targetEntity.x
+            local distanceZ = targetEntity.z
+
+            -- Determine if we're close enough to attack
+            if math.abs(distanceX) <= 1 and math.abs(distanceZ) <= 1 then
                 print("Entity within range. Preparing to attack.")
                 break
             end
 
-            -- Determine the direction to move towards the entity
-            if math.abs(targetEntity.x) > math.abs(targetEntity.z) then
-                if targetEntity.x > 0 then
+            -- Determine movement priority: move along the axis with the larger distance
+            if math.abs(distanceX) > math.abs(distanceZ) then
+                -- Move in the x direction
+                if distanceX > 0 then
+                    faceDirection("forward")
                     moveForwardWithObstacleHandling()
                 else
-                    turtle.turnLeft()
-                    turtle.turnLeft()
+                    faceDirection("backward")
                     moveForwardWithObstacleHandling()
-                    turtle.turnLeft()
-                    turtle.turnLeft()
                 end
             else
-                if targetEntity.z > 0 then
-                    turtle.turnRight()
+                -- Move in the z direction
+                if distanceZ > 0 then
+                    faceDirection("right")
                     moveForwardWithObstacleHandling()
-                    turtle.turnLeft()
                 else
+                    faceDirection("left")
                     moveForwardWithObstacleHandling()
                 end
             end
 
-            -- Re-sense the entities to get updated coordinates of the target
+            -- Re-sense entities to get updated coordinates of the target
             entities = sensor.sense()
             targetEntity = nil
             for _, entity in pairs(entities) do
@@ -166,6 +170,21 @@ function moveForwardWithObstacleHandling()
         else
             print("Unable to move forward due to an unknown issue.")
         end
+    end
+end
+
+-- Function to face a specific direction
+function faceDirection(direction)
+    -- Face the specified direction relative to the current position
+    if direction == "forward" then
+        -- No action needed, facing forward by default
+    elseif direction == "backward" then
+        turtle.turnLeft()
+        turtle.turnLeft()
+    elseif direction == "right" then
+        turtle.turnRight()
+    elseif direction == "left" then
+        turtle.turnLeft()
     end
 end
 
