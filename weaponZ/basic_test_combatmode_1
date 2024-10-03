@@ -34,14 +34,21 @@ function refuelIfNeeded()
     return true
 end
 
--- Function to equip a peripheral if not already equipped
-function ensureEquipped(slot, expectedType)
-    if not peripheral.isPresent(expectedType) then
-        print("Equipping " .. expectedType .. " from slot " .. slot)
+-- Function to equip a peripheral to a specific side if not already equipped
+function ensureEquipped(slot, expectedType, side)
+    if not peripheral.isPresent(side) or peripheral.getType(side) ~= expectedType then
+        print("Equipping " .. expectedType .. " from slot " .. slot .. " to " .. side)
         turtle.select(slot)
-        if not turtle.equipLeft() and not turtle.equipRight() then
-            print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot)
-            return false
+        if side == "left" then
+            if not turtle.equipLeft() then
+                print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot .. " to left side.")
+                return false
+            end
+        elseif side == "right" then
+            if not turtle.equipRight() then
+                print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot .. " to right side.")
+                return false
+            end
         end
     end
     return true
@@ -60,13 +67,13 @@ end
 
 -- Function to detect entities using the Plethora sensor and pathfind to them
 function detectAndAttackEntities()
-    -- Ensure the entity sensor is equipped
-    if not ensureEquipped(slots.entitySensor, "plethora:sensor") then
+    -- Ensure the entity sensor is equipped on the left side
+    if not ensureEquipped(slots.entitySensor, "plethora:sensor", "left") then
         print("Cannot detect entities without sensor.")
         return false
     end
 
-    local sensor = peripheral.find("plethora:sensor")  -- Use Plethora sensor peripheral
+    local sensor = peripheral.wrap("left")  -- Wrap the sensor on the left side
     if not sensor then
         print("Sensor not found.")
         return false
@@ -91,9 +98,15 @@ function detectAndAttackEntities()
 
         print("Hostile entity detected: " .. targetEntity.name)
 
-        -- Ensure the block sensor is equipped for pathfinding
-        if not ensureEquipped(slots.blockSensor, "plethora:blockScanner") then
+        -- Ensure the block sensor is equipped on the right side for pathfinding
+        if not ensureEquipped(slots.blockSensor, "plethora:blockScanner", "right") then
             print("Cannot navigate without block scanner.")
+            return false
+        end
+
+        local blockSensor = peripheral.wrap("right")  -- Wrap the block sensor on the right side
+        if not blockSensor then
+            print("Block scanner not found.")
             return false
         end
 
