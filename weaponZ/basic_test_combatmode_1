@@ -1,20 +1,40 @@
 -- Initialization
 local fuelThreshold = 200  -- Minimum fuel level before refueling
-local whitelist = {["minecraft:cow"] = true, ["minecraft:sheep"] = true}  -- Entities to ignore
+
+-- Inventory Slots Configuration
+local slots = {
+    coal = 1,
+    entitySensor = 2,
+    blockSensor = 3,
+    pickaxe = 4,
+    sword = 5
+}
 
 -- Function to refuel the turtle
 function refuelIfNeeded()
     if turtle.getFuelLevel() < fuelThreshold then
-        for slot = 1, 16 do
-            turtle.select(slot)
-            if turtle.refuel(0) then  -- Check if this slot has fuel
-                turtle.refuel()
-                print("Refueled with slot " .. slot)
-                return true
-            end
+        turtle.select(slots.coal)
+        if turtle.refuel(0) then  -- Check if this slot has fuel
+            turtle.refuel()
+            print("Refueled with slot " .. slots.coal)
+            return true
+        else
+            print("WARNING: Out of fuel! Unable to proceed.")
+            return false
         end
-        print("WARNING: Out of fuel! Unable to proceed.")
-        return false
+    end
+    return true
+end
+
+-- Function to equip a peripheral if not already equipped
+function ensureEquipped(slot, expectedType)
+    if not peripheral.isPresent(expectedType) then
+        print("Equipping " .. expectedType .. " from slot " .. slot)
+        turtle.select(slot)
+        if not turtle.equipLeft() and not turtle.equipRight() then
+            print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot)
+            return false
+        end
     end
     return true
 end
@@ -32,6 +52,12 @@ end
 
 -- Function to detect entities using the Plethora sensor and pathfind to them
 function detectAndAttackEntities()
+    -- Ensure the entity sensor is equipped
+    if not ensureEquipped(slots.entitySensor, "plethora:sensor") then
+        print("Cannot detect entities without sensor.")
+        return false
+    end
+
     local sensor = peripheral.find("plethora:sensor")  -- Use Plethora sensor peripheral
     if not sensor then
         print("Sensor not found.")
@@ -57,15 +83,11 @@ function detectAndAttackEntities()
 
         print("Hostile entity detected: " .. targetEntity.name)
 
-        -- Attempt to navigate towards the entity
-        local blockSensor = peripheral.find("plethora:blockScanner")  -- Use Plethora block sensor peripheral
-        if not blockSensor then
-            print("Block scanner not found, unable to navigate.")
+        -- Ensure the block sensor is equipped for pathfinding
+        if not ensureEquipped(slots.blockSensor, "plethora:blockScanner") then
+            print("Cannot navigate without block scanner.")
             return false
         end
-
-        -- Equip the block sensor to analyze obstacles
-        turtle.select(findSlot("block_sensor"))  -- Assume block sensor is in inventory and can be equipped
 
         -- Basic movement logic to approach the entity
         local reached = false
@@ -75,10 +97,7 @@ function detectAndAttackEntities()
         while attemptCount < maxAttempts do
             attemptCount = attemptCount + 1
 
-            -- Scan the blocks directly around the turtle to determine movement
-            local blocks = blockSensor.scan()
-
-            -- Simple logic to determine a path to the entity (this is just an approximation)
+            -- Attempt to move towards the entity
             if targetEntity.x > 0 then
                 if not turtle.forward() then
                     turtle.dig()  -- Mine forward if the way is blocked
@@ -119,17 +138,12 @@ function detectAndAttackEntities()
         end
 
         -- Equip the sword and attempt to attack
-        if reached then
-            turtle.select(findSlot("sword"))
-            if turtle.attack() then
-                print("Attacked entity: " .. targetEntity.name)
-                return true
-            else
-                print("Attack failed, entity out of range or blocked.")
-            end
+        turtle.select(slots.sword)
+        if turtle.attack() then
+            print("Attacked entity: " .. targetEntity.name)
+            return true
         else
-            print("Failed to reach the entity after " .. maxAttempts .. " attempts.")
-            -- Re-scan the area
+            print("Attack failed, entity out of range or blocked.")
         end
     end
 end
@@ -231,3 +245,4 @@ end
 
 -- Run the main function
 main()
+
