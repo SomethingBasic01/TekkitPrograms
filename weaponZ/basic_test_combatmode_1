@@ -1,0 +1,233 @@
+-- Initialization
+local fuelThreshold = 200  -- Minimum fuel level before refueling
+local whitelist = {["minecraft:cow"] = true, ["minecraft:sheep"] = true}  -- Entities to ignore
+
+-- Function to refuel the turtle
+function refuelIfNeeded()
+    if turtle.getFuelLevel() < fuelThreshold then
+        for slot = 1, 16 do
+            turtle.select(slot)
+            if turtle.refuel(0) then  -- Check if this slot has fuel
+                turtle.refuel()
+                print("Refueled with slot " .. slot)
+                return true
+            end
+        end
+        print("WARNING: Out of fuel! Unable to proceed.")
+        return false
+    end
+    return true
+end
+
+-- Function to locate a specific item in the inventory
+function findSlot(itemName)
+    for i = 1, 16 do
+        local detail = turtle.getItemDetail(i)
+        if detail and detail.name:find(itemName) then
+            return i
+        end
+    end
+    return nil
+end
+
+-- Function to detect entities using the Plethora sensor and pathfind to them
+function detectAndAttackEntities()
+    local sensor = peripheral.find("plethora:sensor")  -- Use Plethora sensor peripheral
+    if not sensor then
+        print("Sensor not found.")
+        return false
+    end
+
+    while true do
+        local entities = sensor.sense()  -- Detect all nearby entities
+        local targetEntity = nil
+
+        -- Find the first non-whitelisted entity
+        for _, entity in pairs(entities) do
+            if not whitelist[entity.name] then
+                targetEntity = entity
+                break
+            end
+        end
+
+        if not targetEntity then
+            print("No hostile entities found.")
+            return false
+        end
+
+        print("Hostile entity detected: " .. targetEntity.name)
+
+        -- Attempt to navigate towards the entity
+        local blockSensor = peripheral.find("plethora:blockScanner")  -- Use Plethora block sensor peripheral
+        if not blockSensor then
+            print("Block scanner not found, unable to navigate.")
+            return false
+        end
+
+        -- Equip the block sensor to analyze obstacles
+        turtle.select(findSlot("block_sensor"))  -- Assume block sensor is in inventory and can be equipped
+
+        -- Basic movement logic to approach the entity
+        local reached = false
+        local maxAttempts = 50  -- Max number of moves before giving up
+        local attemptCount = 0
+
+        while attemptCount < maxAttempts do
+            attemptCount = attemptCount + 1
+
+            -- Scan the blocks directly around the turtle to determine movement
+            local blocks = blockSensor.scan()
+
+            -- Simple logic to determine a path to the entity (this is just an approximation)
+            if targetEntity.x > 0 then
+                if not turtle.forward() then
+                    turtle.dig()  -- Mine forward if the way is blocked
+                else
+                    reached = true
+                end
+            elseif targetEntity.x < 0 then
+                turtle.turnLeft()
+                turtle.turnLeft()
+                if not turtle.forward() then
+                    turtle.dig()
+                else
+                    reached = true
+                end
+                turtle.turnLeft()
+                turtle.turnLeft()
+            elseif targetEntity.z > 0 then
+                turtle.turnRight()
+                if not turtle.forward() then
+                    turtle.dig()
+                else
+                    reached = true
+                end
+                turtle.turnLeft()
+            elseif targetEntity.z < 0 then
+                if not turtle.forward() then
+                    turtle.dig()
+                else
+                    reached = true
+                end
+            end
+
+            -- Check if close enough to attack
+            if reached or (math.abs(targetEntity.x) <= 1 and math.abs(targetEntity.z) <= 1) then
+                print("Entity within range. Preparing to attack.")
+                break
+            end
+        end
+
+        -- Equip the sword and attempt to attack
+        if reached then
+            turtle.select(findSlot("sword"))
+            if turtle.attack() then
+                print("Attacked entity: " .. targetEntity.name)
+                return true
+            else
+                print("Attack failed, entity out of range or blocked.")
+            end
+        else
+            print("Failed to reach the entity after " .. maxAttempts .. " attempts.")
+            -- Re-scan the area
+        end
+    end
+end
+
+-- Function to dig down to bedrock
+function mineDownToBedrock()
+    print("Mining down to bedrock.")
+    while true do
+        -- Check fuel level before any action
+        if not refuelIfNeeded() then
+            print("Stopping due to lack of fuel.")
+            return false
+        end
+
+        -- Check if there is a block below
+        local success, data = turtle.inspectDown()
+        if success and data.name == "minecraft:bedrock" then
+            print("Reached bedrock.")
+            break
+        end
+
+        -- Dig and move down
+        if turtle.detectDown() then
+            turtle.digDown()
+        end
+
+        if not turtle.down() then
+            print("Unable to move down.")
+            return false
+        end
+    end
+    return true
+end
+
+-- Function to move up a specific number of blocks with retry logic
+function moveUpWithRetry(yLevel)
+    while true do
+        print("Attempting to move up " .. yLevel .. " blocks.")
+        local success = true
+        for i = 1, yLevel do
+            -- Check fuel level before any action
+            if not refuelIfNeeded() then
+                print("Stopping due to lack of fuel.")
+                return false
+            end
+
+            -- Clear any blocks above before moving up
+            while turtle.detectUp() do
+                turtle.digUp()  -- Clear the way if there's a block above
+            end
+
+            if not turtle.up() then
+                print("Unable to move up on block " .. i .. ", retrying.")
+                success = false
+                break
+            end
+        end
+
+        if success then
+            print("Moved up " .. yLevel .. " blocks successfully.")
+            return true
+        end
+
+        -- If unsuccessful, retry by returning to bedrock
+        print("Retry failed: Returning to bedrock to retry moving up.")
+        if not mineDownToBedrock() then
+            print("Failed to reach bedrock during retry, stopping.")
+            return false
+        end
+    end
+end
+
+-- Main function to run the turtle operations
+function main()
+    refuelIfNeeded()
+
+    -- Step 1: Enter combat mode
+    print("Entering combat mode.")
+    local foundAndAttacked = detectAndAttackEntities()
+    if foundAndAttacked then
+        print("Hostile entity neutralized.")
+    else
+        -- Step 2: Mine to bedrock if no entities found
+        local reachedBedrock = mineDownToBedrock()
+        if not reachedBedrock then
+            print("Failed to reach bedrock due to an issue.")
+            return
+        end
+
+        -- Step 3: Move up 15 blocks (best Y level for coal, gold, iron, redstone)
+        local success = moveUpWithRetry(15)
+        if not success then
+            print("Failed to move up completely.")
+        end
+    end
+
+    print("Operation complete.")
+end
+
+-- Run the main function
+main()
