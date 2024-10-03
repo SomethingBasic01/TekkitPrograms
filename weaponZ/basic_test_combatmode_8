@@ -162,6 +162,12 @@ function detectAndAttackEntities()
 
         print("Hostile entity detected: " .. targetEntity.name)
 
+        -- Equip the block scanner to the right side for pathfinding
+        if not ensureEquipped(slots.blockScanner, "plethora:blockScanner", "right") then
+            print("Failed to equip block scanner.")
+            return false
+        end
+
         -- Update the target's coordinates
         local targetX, targetY, targetZ = targetEntity.x, targetEntity.y, targetEntity.z
 
