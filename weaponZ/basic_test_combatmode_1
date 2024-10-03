@@ -1,4 +1,4 @@
---- Initialization
+-- Initialization
 local fuelThreshold = 200  -- Minimum fuel level before refueling
 
 -- Inventory Slots Configuration
@@ -8,6 +8,14 @@ local slots = {
     blockSensor = 3,
     pickaxe = 4,
     sword = 5
+}
+
+-- Whitelist of entities to ignore (passive mobs)
+local whitelist = {
+    ["minecraft:cow"] = true,
+    ["minecraft:sheep"] = true,
+    ["minecraft:chicken"] = true,
+    ["minecraft:pig"] = true,
 }
 
 -- Function to refuel the turtle
@@ -245,5 +253,3 @@ end
 
 -- Run the main function
 main()
-
-
