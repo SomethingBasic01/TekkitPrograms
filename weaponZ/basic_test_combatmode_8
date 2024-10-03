@@ -159,7 +159,7 @@ function detectAndAttackEntities()
 
         local targetEntity = nil
         for _, entity in pairs(entities) do
-            if entity.type ~= "item" and not whitelist[entity.name] then
+            if entity.type ~= "item" and not whitelist[entity.name] and entity.name ~= "computercraft:turtle" then
                 print("DEBUG: Potential target entity found: " .. entity.name)
                 targetEntity = entity
                 break
@@ -178,8 +178,12 @@ function detectAndAttackEntities()
             return false
         end
 
-        local targetX, targetY, targetZ = targetEntity.x, targetEntity.y, targetEntity.z
-        print("DEBUG: Target Coordinates: X=" .. targetX .. " Y=" .. targetY .. " Z=" .. targetZ)
+        -- Update the target's coordinates and round them
+        local targetX = math.floor(targetEntity.x + 0.5)
+        local targetY = math.floor(targetEntity.y + 0.5)
+        local targetZ = math.floor(targetEntity.z + 0.5)
+
+        print("DEBUG: Rounded Target Coordinates: X=" .. targetX .. " Y=" .. targetY .. " Z=" .. targetZ)
 
         moveToTarget(targetX, targetY, targetZ)
 
