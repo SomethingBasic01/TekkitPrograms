@@ -1,4 +1,4 @@
--- Initialization
+--- Initialization
 local fuelThreshold = 200  -- Minimum fuel level before refueling
 
 -- Inventory Slots Configuration
@@ -245,4 +245,5 @@ end
 
 -- Run the main function
 main()
+
 
