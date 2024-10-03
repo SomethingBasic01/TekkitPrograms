@@ -1,4 +1,4 @@
---- Initialization
+-- Initialization
 local fuelThreshold = 200  -- Minimum fuel level before refueling
 
 -- Inventory Slots Configuration
@@ -85,6 +85,7 @@ function updatePosition(movement)
     elseif movement == "down" then
         currentY = currentY - 1
     end
+    print("Current Coordinates: X=" .. currentX .. " Y=" .. currentY .. " Z=" .. currentZ)
 end
 
 -- Function to rotate and adjust the facing direction
@@ -110,6 +111,7 @@ function adjustFacing(turn)
             currentFacing = "north"
         end
     end
+    print("Current Facing: " .. currentFacing)
 end
 
 -- Function to move forward with obstacle handling and update position
@@ -170,6 +172,7 @@ function detectAndAttackEntities()
 
         -- Update the target's coordinates
         local targetX, targetY, targetZ = targetEntity.x, targetEntity.y, targetEntity.z
+        print("Target Coordinates: X=" .. targetX .. " Y=" .. targetY .. " Z=" .. targetZ)
 
         -- Calculate the path to the target and move towards it
         moveToTarget(targetX, targetY, targetZ)
@@ -189,17 +192,21 @@ function detectAndAttackEntities()
     end
 end
 
--- Function to move towards the target coordinates
+-- Function to move towards the target coordinates stepwise
 function moveToTarget(targetX, targetY, targetZ)
     -- Move along the Y-axis first
     while currentY ~= targetY do
         if currentY < targetY then
             if turtle.up() then
                 updatePosition("up")
+            else
+                print("Failed to move up.")
             end
         elseif currentY > targetY then
             if turtle.down() then
                 updatePosition("down")
+            else
+                print("Failed to move down.")
             end
         end
     end
