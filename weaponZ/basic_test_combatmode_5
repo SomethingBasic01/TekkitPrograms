@@ -1,0 +1,189 @@
+-- Initialization
+local fuelThreshold = 200  -- Minimum fuel level before refueling
+
+-- Inventory Slots Configuration
+local slots = {
+    coal = 1,
+    entitySensor = 2,
+    blockSensor = 3,
+    pickaxe = 4,
+    sword = 5
+}
+
+-- Whitelist of entities to ignore (passive mobs)
+local whitelist = {
+    ["minecraft:cow"] = true,
+    ["minecraft:sheep"] = true,
+    ["minecraft:chicken"] = true,
+    ["minecraft:pig"] = true,
+}
+
+-- Function to refuel the turtle
+function refuelIfNeeded()
+    if turtle.getFuelLevel() < fuelThreshold then
+        turtle.select(slots.coal)
+        if turtle.refuel(0) then  -- Check if this slot has fuel
+            turtle.refuel()
+            print("Refueled with slot " .. slots.coal)
+            return true
+        else
+            print("WARNING: Out of fuel! Unable to proceed.")
+            return false
+        end
+    end
+    return true
+end
+
+-- Function to equip a peripheral to a specific side if not already equipped
+function ensureEquipped(slot, expectedType, side)
+    if not peripheral.isPresent(side) or peripheral.getType(side) ~= expectedType then
+        print("Equipping " .. expectedType .. " from slot " .. slot .. " to " .. side)
+        turtle.select(slot)
+        if side == "left" then
+            if not turtle.equipLeft() then
+                print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot .. " to left side.")
+                return false
+            end
+        elseif side == "right" then
+            if not turtle.equipRight() then
+                print("ERROR: Failed to equip " .. expectedType .. " from slot " .. slot .. " to right side.")
+                return false
+            end
+        end
+    end
+    return true
+end
+
+-- Function to locate a specific item in the inventory
+function findSlot(itemName)
+    for i = 1, 16 do
+        local detail = turtle.getItemDetail(i)
+        if detail and detail.name:find(itemName) then
+            return i
+        end
+    end
+    return nil
+end
+
+-- Function to detect entities using the Plethora sensor and pathfind to them
+function detectAndAttackEntities()
+    -- Ensure the entity sensor is equipped on the left side
+    if not ensureEquipped(slots.entitySensor, "plethora:sensor", "left") then
+        print("Cannot detect entities without sensor.")
+        return false
+    end
+
+    local sensor = peripheral.wrap("left")  -- Wrap the sensor on the left side
+    if not sensor then
+        print("Sensor not found.")
+        return false
+    end
+
+    while true do
+        local entities = sensor.sense()  -- Detect all nearby entities
+        local targetEntity = nil
+
+        -- Find the first non-whitelisted entity
+        for _, entity in pairs(entities) do
+            if not whitelist[entity.name] then
+                targetEntity = entity
+                break
+            end
+        end
+
+        if not targetEntity then
+            print("No hostile entities found.")
+            return false
+        end
+
+        print("Hostile entity detected: " .. targetEntity.name)
+
+        -- Improved pathfinding logic to approach the entity
+        while true do
+            -- Check if the target is close enough to attack
+            if math.abs(targetEntity.x) <= 1 and math.abs(targetEntity.z) <= 1 then
+                print("Entity within range. Preparing to attack.")
+                break
+            end
+
+            -- Determine the direction to move towards the entity
+            if math.abs(targetEntity.x) > math.abs(targetEntity.z) then
+                if targetEntity.x > 0 then
+                    moveForwardWithObstacleHandling()
+                else
+                    turtle.turnLeft()
+                    turtle.turnLeft()
+                    moveForwardWithObstacleHandling()
+                    turtle.turnLeft()
+                    turtle.turnLeft()
+                end
+            else
+                if targetEntity.z > 0 then
+                    turtle.turnRight()
+                    moveForwardWithObstacleHandling()
+                    turtle.turnLeft()
+                else
+                    moveForwardWithObstacleHandling()
+                end
+            end
+
+            -- Re-sense the entities to get updated coordinates of the target
+            entities = sensor.sense()
+            targetEntity = nil
+            for _, entity in pairs(entities) do
+                if not whitelist[entity.name] then
+                    targetEntity = entity
+                    break
+                end
+            end
+
+            if not targetEntity then
+                print("Lost sight of the entity.")
+                return false
+            end
+        end
+
+        -- Equip the sword and attempt to attack
+        turtle.select(slots.sword)
+        if turtle.attack() then
+            print("Attacked entity: " .. targetEntity.name)
+            return true
+        else
+            print("Attack failed, entity out of range or blocked.")
+        end
+    end
+end
+
+-- Function to move forward with obstacle handling
+function moveForwardWithObstacleHandling()
+    if not turtle.forward() then
+        if turtle.detect() then
+            print("Obstacle detected. Attempting to dig.")
+            turtle.dig()
+            if not turtle.forward() then
+                print("Failed to move forward after digging.")
+            end
+        else
+            print("Unable to move forward due to an unknown issue.")
+        end
+    end
+end
+
+-- Main function to run the turtle operations
+function main()
+    refuelIfNeeded()
+
+    -- Step 1: Enter combat mode
+    print("Entering combat mode.")
+    local foundAndAttacked = detectAndAttackEntities()
+    if foundAndAttacked then
+        print("Hostile entity neutralized.")
+    else
+        print("No entities left or target lost.")
+    end
+
+    print("Operation complete.")
+end
+
+-- Run the main function
+main()
