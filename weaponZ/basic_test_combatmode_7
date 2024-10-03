@@ -54,17 +54,6 @@ function ensureEquipped(slot, expectedType, side)
     return true
 end
 
--- Function to unequip a peripheral from the right side if necessary
-function unequipRightPeripheral()
-    if peripheral.isPresent("right") then
-        if not turtle.equipRight() then
-            print("ERROR: Failed to unequip peripheral from right side.")
-            return false
-        end
-    end
-    return true
-end
-
 -- Function to detect entities using the Plethora sensor and pathfind to them
 function detectAndAttackEntities()
     -- Ensure the entity sensor is equipped on the left side
@@ -110,25 +99,33 @@ function detectAndAttackEntities()
                 break
             end
 
-            -- Determine movement priority: move along the axis with the larger distance
-            if math.abs(distanceX) > math.abs(distanceZ) then
-                -- Move in the x direction
-                if distanceX > 0 then
-                    faceDirection("forward")
-                    moveForwardWithObstacleHandling()
-                else
-                    faceDirection("backward")
-                    moveForwardWithObstacleHandling()
+            -- Move along the x-axis first
+            if distanceX > 0 then
+                faceDirection("forward")
+                moveForwardWithObstacleHandling()
+            elseif distanceX < 0 then
+                faceDirection("backward")
+                moveForwardWithObstacleHandling()
+            end
+
+            -- Update targetEntity after moving along x-axis
+            entities = sensor.sense()
+            for _, entity in pairs(entities) do
+                if not whitelist[entity.name] then
+                    targetEntity = entity
+                    break
                 end
-            else
-                -- Move in the z direction
-                if distanceZ > 0 then
-                    faceDirection("right")
-                    moveForwardWithObstacleHandling()
-                else
-                    faceDirection("left")
-                    moveForwardWithObstacleHandling()
-                end
+            end
+            distanceX = targetEntity.x
+            distanceZ = targetEntity.z
+
+            -- Move along the z-axis
+            if distanceZ > 0 then
+                faceDirection("right")
+                moveForwardWithObstacleHandling()
+            elseif distanceZ < 0 then
+                faceDirection("left")
+                moveForwardWithObstacleHandling()
             end
 
             -- Re-sense entities to get updated coordinates of the target
@@ -147,10 +144,7 @@ function detectAndAttackEntities()
             end
         end
 
-        -- Unequip the right peripheral to equip the sword
-        unequipRightPeripheral()
-
-        -- Equip the sword and attempt to attack
+        -- Select the sword and attempt to attack
         turtle.select(slots.sword)
         if turtle.attack() then
             print("Attacked entity: " .. targetEntity.name)
