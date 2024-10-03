@@ -1,4 +1,4 @@
--- Initialization
+--- Initialization
 local fuelThreshold = 200  -- Minimum fuel level before refueling
 
 -- Inventory Slots Configuration
@@ -147,9 +147,9 @@ function detectAndAttackEntities()
         local entities = sensor.sense()  -- Detect all nearby entities
         local targetEntity = nil
 
-        -- Find the first non-whitelisted living entity
+        -- Find the first valid hostile entity (ignore items and passive mobs)
         for _, entity in pairs(entities) do
-            if not whitelist[entity.name] and entity.isLiving then
+            if entity.type ~= "item" and not whitelist[entity.name] then
                 targetEntity = entity
                 break
             end
