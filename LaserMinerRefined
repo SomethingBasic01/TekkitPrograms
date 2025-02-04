@@ -1,0 +1,158 @@
+-- Miner Program with GUI & Customization Options
+-- (Requires ComputerCraft with Plethora peripherals)
+
+-----------------------------------------------------------
+-- Peripheral and Module Checks
+-----------------------------------------------------------
+local manipulator = peripheral.find("manipulator")
+if not manipulator then
+    error("Error: Cannot find manipulator peripheral.", 0)
+end
+if not manipulator.hasModule("plethora:laser") then
+    error("Error: Laser module not found.", 0)
+end
+if not manipulator.hasModule("plethora:introspection") then
+    error("Error: Introspection module not found.", 0)
+end
+
+-----------------------------------------------------------
+-- Default Configuration Options
+-----------------------------------------------------------
+local config = {
+    holeSize = 3,           -- Must be an odd number (e.g. 3, 5, 7, …)
+    miningDepth = 255,      -- Number of layers to mine (e.g. down to bedrock)
+    delayBetweenShots = 0.2,  -- Seconds to wait after each laser fire
+    delayBetweenLayers = 1    -- Seconds to wait after finishing one layer
+}
+
+-----------------------------------------------------------
+-- Function: fireLaserAt(x, y, z)
+-- Calculates yaw, pitch, and potency based on position and fires the laser.
+-----------------------------------------------------------
+local function fireLaserAt(x, y, z)
+    local distance = math.sqrt(x^2 + y^2 + z^2)
+    if distance > 0 then
+        local yaw = math.deg(math.atan2(x, z))
+        local pitch = -math.deg(math.atan2(y, math.sqrt(x^2 + z^2)))
+        local potency = math.min(5.0, math.max(0.5, distance))  -- Clamp potency between 0.5 and 5.0
+        manipulator.fire(yaw, pitch, potency)
+        sleep(config.delayBetweenShots)
+    end
+end
+
+-----------------------------------------------------------
+-- Function: mineLayerByLayer()
+-- Mines an area defined by "holeSize" layer by layer down to "miningDepth".
+-----------------------------------------------------------
+local function mineLayerByLayer()
+    local halfSize = math.floor((config.holeSize - 1) / 2)
+    for y = -1, -config.miningDepth, -1 do
+        term.clear()
+        term.setCursorPos(1, 1)
+        print("Mining layer at Y offset: " .. y)
+        for offsetX = -halfSize, halfSize do
+            for offsetZ = -halfSize, halfSize do
+                fireLaserAt(offsetX, y, offsetZ)
+            end
+        end
+        sleep(config.delayBetweenLayers)
+    end
+end
+
+-----------------------------------------------------------
+-- GUI: Text-Based Configuration Menu
+--
+-- This menu lets you adjust the mining parameters.
+-- (For a clickable GUI, you would draw buttons with paintutils
+--  and handle "mouse_click" events.)
+-----------------------------------------------------------
+local function configMenu()
+    while true do
+        term.clear()
+        term.setCursorPos(1,1)
+        print("=== Miner Program Configuration ===")
+        print("1. Hole Size (current: " .. config.holeSize .. ")  [must be odd]")
+        print("2. Mining Depth (current: " .. config.miningDepth .. ")")
+        print("3. Delay between Shots (sec) (current: " .. config.delayBetweenShots .. ")")
+        print("4. Delay between Layers (sec) (current: " .. config.delayBetweenLayers .. ")")
+        print("")
+        print("S. Start Mining")
+        print("Q. Quit")
+        print("")
+        write("Select option: ")
+
+        local choice = string.lower(read())
+        if choice == "1" then
+            write("Enter new Hole Size (odd number): ")
+            local input = read()
+            local num = tonumber(input)
+            if num and num % 2 == 1 then
+                config.holeSize = num
+            else
+                print("Invalid input. Must be an odd number!")
+                sleep(1.5)
+            end
+        elseif choice == "2" then
+            write("Enter new Mining Depth (number): ")
+            local input = read()
+            local num = tonumber(input)
+            if num and num > 0 then
+                config.miningDepth = num
+            else
+                print("Invalid input!")
+                sleep(1.5)
+            end
+        elseif choice == "3" then
+            write("Enter new Delay between Shots (sec): ")
+            local input = read()
+            local num = tonumber(input)
+            if num and num >= 0 then
+                config.delayBetweenShots = num
+            else
+                print("Invalid input!")
+                sleep(1.5)
+            end
+        elseif choice == "4" then
+            write("Enter new Delay between Layers (sec): ")
+            local input = read()
+            local num = tonumber(input)
+            if num and num >= 0 then
+                config.delayBetweenLayers = num
+            else
+                print("Invalid input!")
+                sleep(1.5)
+            end
+        elseif choice == "s" then
+            break  -- Start mining
+        elseif choice == "q" then
+            print("Exiting...")
+            os.exit()
+        else
+            print("Invalid option, please try again.")
+            sleep(1.5)
+        end
+    end
+end
+
+-----------------------------------------------------------
+-- Main Program
+-----------------------------------------------------------
+local function main()
+    -- Show configuration menu to let the user customize options
+    configMenu()
+
+    -- Show summary and wait briefly before starting
+    term.clear()
+    term.setCursorPos(1,1)
+    print("Starting mining operation with the following settings:")
+    print(textutils.serialize(config))
+    sleep(2)
+
+    -- Begin mining operation
+    mineLayerByLayer()
+
+    print("Mining operation completed.")
+end
+
+-- Run the main function
+main()
