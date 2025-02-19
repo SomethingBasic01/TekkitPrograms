@@ -2,24 +2,23 @@
 -- Entity Alert & Radar System
 -- Using DiscordHook for sending/polling Discord commands.
 -- Uses the manipulator's sensor module.
--- Player/mob detection based on meta.food.hunger (no extra debug prints).
 -------------------------------
 
 -- CONFIGURATION FILE HANDLING
 local configFile = "config"
 local config = {
-  whitelist = {},         -- Table of names (players/mobs) to ignore.
-  pulseMob = true,        -- Send redstone pulse for mobs.
-  pulsePlayer = true,     -- Send redstone pulse for players.
-  radarMode = false,      -- false = list mode, true = radar (map) mode.
-  discordEnabled = true,  -- Toggle Discord messages entirely.
-  webhookURL = "https://discord.com/api/webhooks/your_webhook_here",  
-  botName = "Base Defence Bot",  
-  botAvatar = nil,        
-  discordChannel = "your_channel_id_here", 
-  botToken = "your_bot_token_here", 
-  origin = { x = 0, y = 0, z = 0 },  -- The sensor's position in the world.
-  radarRotation = 0,      
+  whitelist = {},
+  pulseMob = true,
+  pulsePlayer = true,
+  radarMode = false,
+  discordEnabled = true,
+  webhookURL = "https://discord.com/api/webhooks/your_webhook_here",
+  botName = "Base Defence Bot",
+  botAvatar = nil,
+  discordChannel = "your_channel_id_here",
+  botToken = "your_bot_token_here",
+  origin = { x = 0, y = 0, z = 0 },
+  radarRotation = 0,
   displayWhitelistedOnRadar = true
 }
 
@@ -84,7 +83,12 @@ end
 
 local function discordSendMessage(message)
   if config.discordEnabled then
-    hook.send(message, config.botName, config.botAvatar)
+    local success, err = pcall(function()
+      hook.send(message, config.botName, config.botAvatar)
+    end)
+    if not success then
+      print("DEBUG: Error sending message to Discord: " .. tostring(err))
+    end
   end
 end
 
@@ -311,7 +315,6 @@ local function detectionLoop()
       local worldY = config.origin.y + sy
       local worldZ = config.origin.z + sz
 
-      -- Check meta.food.hunger to classify players.
       local meta = getMeta(entity)
       local etype = "mob"
       if meta and meta.food and type(meta.food.hunger) == "number" then
