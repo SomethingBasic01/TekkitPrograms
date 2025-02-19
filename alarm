@@ -1,0 +1,438 @@
+-------------------------------
+-- Entity Alert & Radar System
+-- Using DiscordHook for sending/polling Discord commands.
+-- Uses the manipulator's sensor module.
+-- Includes extensive debugging.
+-------------------------------
+
+-- CONFIGURATION FILE HANDLING
+local configFile = "config"
+local config = {
+  whitelist = {},         -- Table of names (players/mobs) to ignore.
+  pulseMob = true,        -- Send redstone pulse for mobs.
+  pulsePlayer = true,     -- Send redstone pulse for players.
+  radarMode = false,      -- false = list mode, true = radar (map) mode.
+  discordEnabled = true,  -- Toggle Discord messages entirely.
+  webhookURL = "https://discord.com/api/webhooks/your_webhook_here",  
+  botName = "Base Defence Bot",  
+  botAvatar = nil,        
+  discordChannel = "your_channel_id_here", 
+  botToken = "your_bot_token_here", 
+  origin = { x = 0, y = 0, z = 0 },  
+  radarRotation = 0,      
+  displayWhitelistedOnRadar = true
+}
+
+local function loadConfig()
+  if fs.exists(configFile) then
+    local file = fs.open(configFile, "r")
+    local data = file.readAll()
+    file.close()
+    local conf = textutils.unserialize(data)
+    if conf then config = conf end
+  end
+end
+
+local function saveConfig()
+  local file = fs.open(configFile, "w")
+  file.write(textutils.serialize(config))
+  file.close()
+end
+
+loadConfig()
+
+-------------------------------
+-- PERIPHERAL SETUP
+-------------------------------
+
+-- Find the manipulator peripheral.
+local modules = peripheral.find("manipulator")
+if not modules then
+  error("Cannot find manipulator")
+end
+
+-- Ensure the manipulator has the sensor module.
+if not modules.hasModule("plethora:sensor") then
+  error("Cannot find entity sensor module on the manipulator")
+end
+
+-- For scanning entities, we now use modules.sense().
+local function scanEntities()
+  return modules.sense()
+end
+
+-- Retrieve full meta data for an entity (hunger, health, etc.).
+local function getMeta(entity)
+  if entity and entity.id then
+    return modules.getMetaByID(entity.id)
+  end
+  return nil
+end
+
+-- Find the monitor (multi-monitor assumed).
+local monitor = peripheral.find("monitor")
+if not monitor then
+  error("Monitor not found!")
+end
+
+-- Ensure redstone API is available.
+if not redstone then
+  error("Redstone API not available!")
+end
+
+-------------------------------
+-- DISCORD INTEGRATION (sending)
+-------------------------------
+local DiscordHook = require("DiscordHook")
+local hookSuccess, hook = DiscordHook.createWebhook(config.webhookURL)
+if not hookSuccess then
+  error("Webhook connection failed! Reason: " .. hook)
+end
+
+local function discordSendMessage(message)
+  if config.discordEnabled then
+    hook.send(message, config.botName, config.botAvatar)
+  end
+end
+
+-------------------------------
+-- FORWARD DECLARATION
+-------------------------------
+local processCommand  -- we define it later
+
+-------------------------------
+-- DISCORD POLLER (for receiving commands)
+-------------------------------
+local lastMessageID = nil -- Last processed message ID
+local lastDiscordRaw = "" -- Raw JSON from Discord
+
+local function pollDiscordMessages()
+  while true do
+    local url = "https://discord.com/api/v9/channels/" .. config.discordChannel .. "/messages?limit=5"
+    if lastMessageID then
+      url = url .. "&after=" .. lastMessageID
+    end
+
+    local headers = {
+      ["Authorization"] = "Bot " .. config.botToken,
+      ["User-Agent"] = "DiscordBot (ComputerCraft, 1.0)"
+    }
+
+    local response = http.get(url, headers)
+    if response then
+      local body = response.readAll()
+      lastDiscordRaw = body  -- store raw JSON for debug
+      response.close()
+      local success, messages = pcall(textutils.unserializeJSON, body)
+      if success and type(messages) == "table" then
+        local toProcess = {}
+        -- Discord returns messages in descending order
+        for i = #messages, 1, -1 do
+          local msg = messages[i]
+          if not msg.author.bot then
+            table.insert(toProcess, msg)
+          end
+          if (not lastMessageID) or (tonumber(msg.id) > tonumber(lastMessageID)) then
+            lastMessageID = msg.id
+          end
+        end
+        for _, msg in ipairs(toProcess) do
+          local content = msg.content:gsub("^%s*(.-)%s*$", "%1") -- trim
+          print("DEBUG: Received Discord command -> [" .. content .. "]")
+          processCommand(content, "discord")
+        end
+      else
+        print("Error decoding Discord response.")
+      end
+    else
+      print("Failed to poll Discord messages.")
+    end
+    sleep(3)
+  end
+end
+
+-------------------------------
+-- UTILITY FUNCTIONS
+-------------------------------
+-- The sensor returns relative coords, so block distance is sqrt(x^2 + y^2 + z^2).
+local function computeDistance(x, y, z)
+  return math.sqrt(x*x + y*y + z*z)
+end
+
+local function pulseRedstone(entityType)
+  if entityType == "mob" and config.pulseMob then
+    redstone.setOutput("left", true)
+    sleep(0.5)
+    redstone.setOutput("left", false)
+    print("Pulsed left (mob)")
+  elseif entityType == "player" and config.pulsePlayer then
+    redstone.setOutput("right", true)
+    sleep(0.5)
+    redstone.setOutput("right", false)
+    print("Pulsed right (player)")
+  end
+end
+
+-------------------------------
+-- COMMAND PROCESSING
+-------------------------------
+processCommand = function(cmd, source)
+  local command, rest = cmd:match("^(%S+)%s*(.*)$")
+  command = command and command:lower() or ""
+  rest = rest or ""
+
+  -- Debug: Print out what we parsed.
+  print("DEBUG: processCommand -> command=[" .. command .. "], rest=[" .. rest .. "], source=[" .. source .. "]")
+
+  if command == "addwhitelist" then
+    if rest ~= "" then
+      config.whitelist[rest] = true
+      saveConfig()
+      print("Added to whitelist: " .. rest)
+      if source == "discord" then
+        discordSendMessage("Whitelist updated: added " .. rest)
+      end
+    else
+      print("Usage: addwhitelist <entityName>")
+    end
+  elseif command == "removewhitelist" then
+    if rest ~= "" then
+      config.whitelist[rest] = nil
+      saveConfig()
+      print("Removed from whitelist: " .. rest)
+      if source == "discord" then
+        discordSendMessage("Whitelist updated: removed " .. rest)
+      end
+    else
+      print("Usage: removewhitelist <entityName>")
+    end
+  elseif command == "togglepulse" then
+    if rest:lower() == "mob" then
+      config.pulseMob = not config.pulseMob
+      print("Mob pulse set to: " .. tostring(config.pulseMob))
+      discordSendMessage("Mob pulse toggled: " .. tostring(config.pulseMob))
+    elseif rest:lower() == "player" then
+      config.pulsePlayer = not config.pulsePlayer
+      print("Player pulse set to: " .. tostring(config.pulsePlayer))
+      discordSendMessage("Player pulse toggled: " .. tostring(config.pulsePlayer))
+    else
+      print("Usage: togglepulse mob|player")
+    end
+    saveConfig()
+  elseif command == "override" then
+    if rest:lower() == "mob" then
+      pulseRedstone("mob")
+      discordSendMessage("Manual override: mob pulse triggered")
+    elseif rest:lower() == "player" then
+      pulseRedstone("player")
+      discordSendMessage("Manual override: player pulse triggered")
+    else
+      print("Usage: override mob|player")
+    end
+  elseif command == "toggleradar" then
+    config.radarMode = not config.radarMode
+    print("Radar mode set to: " .. tostring(config.radarMode))
+    discordSendMessage("Radar mode toggled: " .. tostring(config.radarMode))
+    saveConfig()
+  elseif command == "setorigin" then
+    local x, y, z = rest:match("^(%-?%d+)%s+(%-?%d+)%s+(%-?%d+)$")
+    if x and y and z then
+      config.origin = { x = tonumber(x), y = tonumber(y), z = tonumber(z) }
+      saveConfig()
+      print("Origin set to: (" .. x .. ", " .. y .. ", " .. z .. ")")
+      discordSendMessage("Origin updated to: (" .. x .. ", " .. y .. ", " .. z .. ")")
+    else
+      print("Usage: setorigin <x> <y> <z>")
+    end
+  elseif command == "setrotation" then
+    local angle = tonumber(rest)
+    if angle and (angle == 0 or angle == 90 or angle == 180 or angle == 270) then
+      config.radarRotation = angle
+      saveConfig()
+      print("Radar rotation set to: " .. angle .. " degrees")
+      discordSendMessage("Radar rotation updated to: " .. angle .. " degrees")
+    else
+      print("Usage: setrotation <0|90|180|270>")
+    end
+  elseif command == "setwebhook" then
+    if rest ~= "" then
+      config.webhookURL = rest
+      saveConfig()
+      local success, newHook = DiscordHook.createWebhook(config.webhookURL)
+      if success then
+        hook = newHook
+        print("Webhook URL updated.")
+        discordSendMessage("Webhook URL updated.")
+      else
+        print("Failed to update webhook: " .. newHook)
+      end
+    else
+      print("Usage: setwebhook <url>")
+    end
+  elseif command == "setbotname" then
+    if rest ~= "" then
+      config.botName = rest
+      saveConfig()
+      print("Bot name updated to: " .. rest)
+      discordSendMessage("Bot name updated to: " .. rest)
+    else
+      print("Usage: setbotname <name>")
+    end
+  elseif command == "listsensor" then
+    local entities = scanEntities()
+    local output = textutils.serialize(entities)
+    print("Sensor Data:")
+    print(output)
+    if source == "discord" then
+      discordSendMessage("Sensor Data: " .. output)
+    end
+  elseif command == "listsensormeta" then
+    local entities = scanEntities()
+    for i, e in ipairs(entities) do
+      local meta = getMeta(e)
+      print("Entity " .. i .. " meta:")
+      if meta then
+        print(textutils.serialize(meta))
+      else
+        print("No meta data available.")
+      end
+    end
+  elseif command == "debugdiscord" then
+    print("Full Discord Raw JSON:")
+    print(lastDiscordRaw)
+    if source == "discord" then
+      local snippet = lastDiscordRaw:sub(1,512)
+      discordSendMessage("Full Discord Raw JSON (first 512 chars): " .. snippet)
+    end
+  else
+    print("Unknown command: " .. cmd)
+  end
+end
+
+-- Listen for local keyboard commands.
+local function localCommandListener()
+  while true do
+    term.write("> ")
+    local input = read()
+    processCommand(input, "local")
+  end
+end
+
+-------------------------------
+-- MAIN DETECTION & DISPLAY LOOP
+-------------------------------
+local function detectionLoop()
+  while true do
+    local allEntities = scanEntities()
+    local listEntities = {}
+    local radarEntities = {}
+    
+    for _, entity in ipairs(allEntities) do
+      local entityName = entity.name or entity.type or "Unknown"
+      local sx = entity.x or 0
+      local sy = entity.y or 0
+      local sz = entity.z or 0
+      local distance = computeDistance(sx, sy, sz)  -- sensor's block distance
+
+      -- Add sensor coords + origin => world coords
+      local worldX = config.origin.x + sx
+      local worldY = config.origin.y + sy
+      local worldZ = config.origin.z + sz
+
+      -- Grab meta data (for hunger, etc.)
+      local meta = getMeta(entity)
+      local etype = "mob"
+      if meta and type(meta.hunger) == "number" then
+        etype = "player"
+      end
+
+      -- DEBUG: Show exactly how we classify each entity
+      print(string.format(
+        "DEBUG: entity='%s' sensor=(%.1f,%.1f,%.1f) hunger=%s => type=%s dist=%.1f",
+        entityName, sx, sy, sz, tostring(meta and meta.hunger), etype, distance
+      ))
+
+      -- If not whitelisted, we display + pulse
+      if not config.whitelist[entityName] then
+        local msg = string.format(
+          "%s at (%d, %d, %d) - %.1f blocks away.",
+          entityName, worldX, worldY, worldZ, distance
+        )
+        discordSendMessage(msg)
+        table.insert(listEntities, {
+          name = entityName,
+          worldX = worldX,
+          worldY = worldY,
+          worldZ = worldZ,
+          distance = distance
+        })
+        pulseRedstone(etype)
+      end
+
+      table.insert(radarEntities, {
+        name = entityName,
+        x = worldX,
+        z = worldZ
+      })
+    end
+
+    monitor.clear()
+    monitor.setCursorPos(1, 1)
+    monitor.write("Entity Alert System")
+
+    if not config.radarMode then
+      local line = 2
+      for _, entity in ipairs(listEntities) do
+        monitor.setCursorPos(1, line)
+        local str = string.format(
+          "%s: (%d,%d,%d) %.1f blocks",
+          entity.name, entity.worldX, entity.worldY, entity.worldZ, entity.distance
+        )
+        monitor.write(str)
+        line = line + 1
+      end
+    else
+      local w, h = monitor.getSize()
+      local centerX, centerY = math.floor(w / 2), math.floor(h / 2)
+      monitor.clear()
+      monitor.setCursorPos(centerX, centerY)
+      monitor.write("O")
+
+      for _, entity in ipairs(radarEntities) do
+        local dx = entity.x - config.origin.x
+        local dz = entity.z - config.origin.z
+
+        local rx, rz = dx, dz
+        if config.radarRotation == 90 then
+          rx, rz = dz, -dx
+        elseif config.radarRotation == 180 then
+          rx, rz = -dx, -dz
+        elseif config.radarRotation == 270 then
+          rx, rz = -dz, dx
+        end
+
+        local x = centerX + math.floor(rx)
+        local y = centerY + math.floor(rz)
+        if x >= 1 and x <= w and y >= 1 and y <= h then
+          monitor.setCursorPos(x, y)
+          local symbol = "*"
+          if config.whitelist[entity.name] then
+            symbol = "W"
+          end
+          monitor.write(symbol)
+        end
+      end
+    end
+    
+    sleep(1)
+  end
+end
+
+-------------------------------
+-- PARALLEL TASKS
+-------------------------------
+parallel.waitForAny(
+  localCommandListener,
+  pollDiscordMessages,
+  detectionLoop
+)
