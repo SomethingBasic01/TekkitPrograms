@@ -2,7 +2,10 @@
 -- Entity Alert & Radar System
 -- Using DiscordHook for sending/polling Discord commands.
 -- Uses the manipulator's sensor module.
+-- (DEBUG mode controlled by the DEBUG flag below)
 -------------------------------
+
+local DEBUG = true  -- Set to false to disable debug prints
 
 -- CONFIGURATION FILE HANDLING
 local configFile = "config"
@@ -44,13 +47,9 @@ loadConfig()
 -- PERIPHERAL SETUP
 -------------------------------
 local modules = peripheral.find("manipulator")
-if not modules then
-  error("Cannot find manipulator")
-end
+if not modules then error("Cannot find manipulator") end
 
-if not modules.hasModule("plethora:sensor") then
-  error("Cannot find entity sensor module on the manipulator")
-end
+if not modules.hasModule("plethora:sensor") then error("Cannot find entity sensor module on the manipulator") end
 
 local function scanEntities()
   return modules.sense()
@@ -64,29 +63,23 @@ local function getMeta(entity)
 end
 
 local monitor = peripheral.find("monitor")
-if not monitor then
-  error("Monitor not found!")
-end
+if not monitor then error("Monitor not found!") end
 
-if not redstone then
-  error("Redstone API not available!")
-end
+if not redstone then error("Redstone API not available!") end
 
 -------------------------------
 -- DISCORD INTEGRATION (sending)
 -------------------------------
 local DiscordHook = require("DiscordHook")
 local hookSuccess, hook = DiscordHook.createWebhook(config.webhookURL)
-if not hookSuccess then
-  error("Webhook connection failed! Reason: " .. hook)
-end
+if not hookSuccess then error("Webhook connection failed! Reason: " .. hook) end
 
 local function discordSendMessage(message)
   if config.discordEnabled then
     local success, err = pcall(function()
       hook.send(message, config.botName, config.botAvatar)
     end)
-    if not success then
+    if DEBUG and not success then
       print("DEBUG: Error sending message to Discord: " .. tostring(err))
     end
   end
@@ -95,7 +88,7 @@ end
 -------------------------------
 -- FORWARD DECLARATION
 -------------------------------
-local processCommand
+local processCommand  -- defined below
 
 -------------------------------
 -- DISCORD POLLER (for receiving commands)
@@ -109,12 +102,10 @@ local function pollDiscordMessages()
     if lastMessageID then
       url = url .. "&after=" .. lastMessageID
     end
-
     local headers = {
       ["Authorization"] = "Bot " .. config.botToken,
       ["User-Agent"] = "DiscordBot (ComputerCraft, 1.0)"
     }
-
     local response = http.get(url, headers)
     if response then
       local body = response.readAll()
@@ -134,9 +125,14 @@ local function pollDiscordMessages()
         end
         for _, msg in ipairs(toProcess) do
           local content = msg.content:gsub("^%s*(.-)%s*$", "%1")
+          if DEBUG then print("DEBUG: Received Discord command -> [" .. content .. "]") end
           processCommand(content, "discord")
         end
+      else
+        if DEBUG then print("DEBUG: Error decoding Discord response.") end
       end
+    else
+      if DEBUG then print("DEBUG: Failed to poll Discord messages.") end
     end
     sleep(3)
   end
@@ -169,56 +165,46 @@ processCommand = function(cmd, source)
   command = command and command:lower() or ""
   rest = rest or ""
 
+  if DEBUG then
+    print("DEBUG: processCommand -> command=[" .. command .. "], rest=[" .. rest .. "], source=[" .. source .. "]")
+  end
+
   if command == "addwhitelist" then
     if rest ~= "" then
       config.whitelist[rest] = true
       saveConfig()
-      if source == "discord" then
-        discordSendMessage("Whitelist updated: added " .. rest)
-      end
+      if source == "discord" then discordSendMessage("Whitelist updated: added " .. rest) end
     end
 
   elseif command == "removewhitelist" then
     if rest ~= "" then
       config.whitelist[rest] = nil
       saveConfig()
-      if source == "discord" then
-        discordSendMessage("Whitelist updated: removed " .. rest)
-      end
+      if source == "discord" then discordSendMessage("Whitelist updated: removed " .. rest) end
     end
 
   elseif command == "togglepulse" then
     if rest:lower() == "mob" then
       config.pulseMob = not config.pulseMob
-      if source == "discord" then
-        discordSendMessage("Mob pulse toggled: " .. tostring(config.pulseMob))
-      end
+      if source == "discord" then discordSendMessage("Mob pulse toggled: " .. tostring(config.pulseMob)) end
     elseif rest:lower() == "player" then
       config.pulsePlayer = not config.pulsePlayer
-      if source == "discord" then
-        discordSendMessage("Player pulse toggled: " .. tostring(config.pulsePlayer))
-      end
+      if source == "discord" then discordSendMessage("Player pulse toggled: " .. tostring(config.pulsePlayer)) end
     end
     saveConfig()
 
   elseif command == "override" then
     if rest:lower() == "mob" then
       pulseRedstone("mob")
-      if source == "discord" then
-        discordSendMessage("Manual override: mob pulse triggered")
-      end
+      if source == "discord" then discordSendMessage("Manual override: mob pulse triggered") end
     elseif rest:lower() == "player" then
       pulseRedstone("player")
-      if source == "discord" then
-        discordSendMessage("Manual override: player pulse triggered")
-      end
+      if source == "discord" then discordSendMessage("Manual override: player pulse triggered") end
     end
 
   elseif command == "toggleradar" then
     config.radarMode = not config.radarMode
-    if source == "discord" then
-      discordSendMessage("Radar mode toggled: " .. tostring(config.radarMode))
-    end
+    if source == "discord" then discordSendMessage("Radar mode toggled: " .. tostring(config.radarMode)) end
     saveConfig()
 
   elseif command == "setorigin" then
@@ -226,9 +212,7 @@ processCommand = function(cmd, source)
     if x and y and z then
       config.origin = { x = tonumber(x), y = tonumber(y), z = tonumber(z) }
       saveConfig()
-      if source == "discord" then
-        discordSendMessage("Origin updated to: (" .. x .. ", " .. y .. ", " .. z .. ")")
-      end
+      if source == "discord" then discordSendMessage("Origin updated to: (" .. x .. ", " .. y .. ", " .. z .. ")") end
     end
 
   elseif command == "setrotation" then
@@ -236,9 +220,7 @@ processCommand = function(cmd, source)
     if angle and (angle == 0 or angle == 90 or angle == 180 or angle == 270) then
       config.radarRotation = angle
       saveConfig()
-      if source == "discord" then
-        discordSendMessage("Radar rotation updated to: " .. angle .. " degrees")
-      end
+      if source == "discord" then discordSendMessage("Radar rotation updated to: " .. angle .. " degrees") end
     end
 
   elseif command == "setwebhook" then
@@ -248,9 +230,7 @@ processCommand = function(cmd, source)
       local success, newHook = DiscordHook.createWebhook(config.webhookURL)
       if success then
         hook = newHook
-        if source == "discord" then
-          discordSendMessage("Webhook URL updated.")
-        end
+        if source == "discord" then discordSendMessage("Webhook URL updated.") end
       end
     end
 
@@ -258,17 +238,13 @@ processCommand = function(cmd, source)
     if rest ~= "" then
       config.botName = rest
       saveConfig()
-      if source == "discord" then
-        discordSendMessage("Bot name updated to: " .. rest)
-      end
+      if source == "discord" then discordSendMessage("Bot name updated to: " .. rest) end
     end
 
   elseif command == "listsensor" then
     local entities = scanEntities()
     local output = textutils.serialize(entities)
-    if source == "discord" then
-      discordSendMessage("Sensor Data: " .. output)
-    end
+    if source == "discord" then discordSendMessage("Sensor Data: " .. output) end
 
   elseif command == "listsensormeta" then
     local entities = scanEntities()
@@ -282,16 +258,13 @@ processCommand = function(cmd, source)
         metaOutput = metaOutput .. ("No meta data.\n")
       end
     end
-    if source == "discord" then
-      discordSendMessage("Sensor Meta:\n" .. metaOutput)
-    end
+    if source == "discord" then discordSendMessage("Sensor Meta:\n" .. metaOutput) end
 
   elseif command == "debugdiscord" then
     if source == "discord" then
       local snippet = lastDiscordRaw:sub(1,512)
       discordSendMessage("Full Discord Raw JSON (first 512 chars): " .. snippet)
     end
-
   end
 end
 
@@ -310,7 +283,6 @@ local function detectionLoop()
       local sy = entity.y or 0
       local sz = entity.z or 0
       local distance = computeDistance(sx, sy, sz)
-
       local worldX = config.origin.x + sx
       local worldY = config.origin.y + sy
       local worldZ = config.origin.z + sz
@@ -365,11 +337,9 @@ local function detectionLoop()
       monitor.clear()
       monitor.setCursorPos(centerX, centerY)
       monitor.write("O")
-
       for _, entity in ipairs(radarEntities) do
         local dx = entity.x - config.origin.x
         local dz = entity.z - config.origin.z
-
         local rx, rz = dx, dz
         if config.radarRotation == 90 then
           rx, rz = dz, -dx
@@ -378,7 +348,6 @@ local function detectionLoop()
         elseif config.radarRotation == 270 then
           rx, rz = -dz, dx
         end
-
         local x = centerX + math.floor(rx)
         local y = centerY + math.floor(rz)
         if x >= 1 and x <= w and y >= 1 and y <= h then
