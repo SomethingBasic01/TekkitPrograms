@@ -2,7 +2,7 @@
 -- Entity Alert & Radar System
 -- Using DiscordHook for sending/polling Discord commands.
 -- Uses the manipulator's sensor module.
--- Final version with meta.food.hunger check and extensive debug.
+-- Player/mob detection based on meta.food.hunger (no extra debug prints).
 -------------------------------
 
 -- CONFIGURATION FILE HANDLING
@@ -130,14 +130,9 @@ local function pollDiscordMessages()
         end
         for _, msg in ipairs(toProcess) do
           local content = msg.content:gsub("^%s*(.-)%s*$", "%1")
-          print("DEBUG: Received Discord command -> [" .. content .. "]")
           processCommand(content, "discord")
         end
-      else
-        print("Error decoding Discord response.")
       end
-    else
-      print("Failed to poll Discord messages.")
     end
     sleep(3)
   end
@@ -155,12 +150,10 @@ local function pulseRedstone(entityType)
     redstone.setOutput("left", true)
     sleep(0.5)
     redstone.setOutput("left", false)
-    print("Pulsed left (mob)")
   elseif entityType == "player" and config.pulsePlayer then
     redstone.setOutput("right", true)
     sleep(0.5)
     redstone.setOutput("right", false)
-    print("Pulsed right (player)")
   end
 end
 
@@ -172,78 +165,78 @@ processCommand = function(cmd, source)
   command = command and command:lower() or ""
   rest = rest or ""
 
-  print("DEBUG: processCommand -> command=[" .. command .. "], rest=[" .. rest .. "], source=[" .. source .. "]")
-
   if command == "addwhitelist" then
     if rest ~= "" then
       config.whitelist[rest] = true
       saveConfig()
-      print("Added to whitelist: " .. rest)
       if source == "discord" then
         discordSendMessage("Whitelist updated: added " .. rest)
       end
-    else
-      print("Usage: addwhitelist <entityName>")
     end
+
   elseif command == "removewhitelist" then
     if rest ~= "" then
       config.whitelist[rest] = nil
       saveConfig()
-      print("Removed from whitelist: " .. rest)
       if source == "discord" then
         discordSendMessage("Whitelist updated: removed " .. rest)
       end
-    else
-      print("Usage: removewhitelist <entityName>")
     end
+
   elseif command == "togglepulse" then
     if rest:lower() == "mob" then
       config.pulseMob = not config.pulseMob
-      print("Mob pulse set to: " .. tostring(config.pulseMob))
-      discordSendMessage("Mob pulse toggled: " .. tostring(config.pulseMob))
+      if source == "discord" then
+        discordSendMessage("Mob pulse toggled: " .. tostring(config.pulseMob))
+      end
     elseif rest:lower() == "player" then
       config.pulsePlayer = not config.pulsePlayer
-      print("Player pulse set to: " .. tostring(config.pulsePlayer))
-      discordSendMessage("Player pulse toggled: " .. tostring(config.pulsePlayer))
-    else
-      print("Usage: togglepulse mob|player")
+      if source == "discord" then
+        discordSendMessage("Player pulse toggled: " .. tostring(config.pulsePlayer))
+      end
     end
     saveConfig()
+
   elseif command == "override" then
     if rest:lower() == "mob" then
       pulseRedstone("mob")
-      discordSendMessage("Manual override: mob pulse triggered")
+      if source == "discord" then
+        discordSendMessage("Manual override: mob pulse triggered")
+      end
     elseif rest:lower() == "player" then
       pulseRedstone("player")
-      discordSendMessage("Manual override: player pulse triggered")
-    else
-      print("Usage: override mob|player")
+      if source == "discord" then
+        discordSendMessage("Manual override: player pulse triggered")
+      end
     end
+
   elseif command == "toggleradar" then
     config.radarMode = not config.radarMode
-    print("Radar mode set to: " .. tostring(config.radarMode))
-    discordSendMessage("Radar mode toggled: " .. tostring(config.radarMode))
+    if source == "discord" then
+      discordSendMessage("Radar mode toggled: " .. tostring(config.radarMode))
+    end
     saveConfig()
+
   elseif command == "setorigin" then
     local x, y, z = rest:match("^(%-?%d+)%s+(%-?%d+)%s+(%-?%d+)$")
     if x and y and z then
       config.origin = { x = tonumber(x), y = tonumber(y), z = tonumber(z) }
       saveConfig()
-      print("Origin set to: (" .. x .. ", " .. y .. ", " .. z .. ")")
-      discordSendMessage("Origin updated to: (" .. x .. ", " .. y .. ", " .. z .. ")")
-    else
-      print("Usage: setorigin <x> <y> <z>")
+      if source == "discord" then
+        discordSendMessage("Origin updated to: (" .. x .. ", " .. y .. ", " .. z .. ")")
+      end
     end
+
   elseif command == "setrotation" then
     local angle = tonumber(rest)
     if angle and (angle == 0 or angle == 90 or angle == 180 or angle == 270) then
       config.radarRotation = angle
       saveConfig()
-      print("Radar rotation set to: " .. angle .. " degrees")
-      discordSendMessage("Radar rotation updated to: " .. angle .. " degrees")
-    else
-      print("Usage: setrotation <0|90|180|270>")
+      if source == "discord" then
+        discordSendMessage("Radar rotation updated to: " .. angle .. " degrees")
+      end
     end
+
   elseif command == "setwebhook" then
     if rest ~= "" then
       config.webhookURL = rest
@@ -251,51 +244,50 @@ processCommand = function(cmd, source)
       local success, newHook = DiscordHook.createWebhook(config.webhookURL)
       if success then
         hook = newHook
-        print("Webhook URL updated.")
-        discordSendMessage("Webhook URL updated.")
-      else
-        print("Failed to update webhook: " .. newHook)
+        if source == "discord" then
+          discordSendMessage("Webhook URL updated.")
+        end
       end
-    else
-      print("Usage: setwebhook <url>")
     end
+
   elseif command == "setbotname" then
     if rest ~= "" then
       config.botName = rest
       saveConfig()
-      print("Bot name updated to: " .. rest)
-      discordSendMessage("Bot name updated to: " .. rest)
-    else
-      print("Usage: setbotname <name>")
+      if source == "discord" then
+        discordSendMessage("Bot name updated to: " .. rest)
+      end
     end
+
   elseif command == "listsensor" then
     local entities = scanEntities()
     local output = textutils.serialize(entities)
-    print("Sensor Data:")
-    print(output)
     if source == "discord" then
       discordSendMessage("Sensor Data: " .. output)
     end
+
   elseif command == "listsensormeta" then
     local entities = scanEntities()
+    local metaOutput = ""
     for i, e in ipairs(entities) do
       local meta = getMeta(e)
-      print("Entity " .. i .. " meta:")
+      metaOutput = metaOutput .. ("Entity " .. i .. ":\n")
       if meta then
-        print(textutils.serialize(meta))
+        metaOutput = metaOutput .. (textutils.serialize(meta) .. "\n")
       else
-        print("No meta data available.")
+        metaOutput = metaOutput .. ("No meta data.\n")
       end
     end
+    if source == "discord" then
+      discordSendMessage("Sensor Meta:\n" .. metaOutput)
+    end
+
   elseif command == "debugdiscord" then
-    print("Full Discord Raw JSON:")
-    print(lastDiscordRaw)
     if source == "discord" then
       local snippet = lastDiscordRaw:sub(1,512)
       discordSendMessage("Full Discord Raw JSON (first 512 chars): " .. snippet)
     end
-  else
-    print("Unknown command: " .. cmd)
+
   end
 end
 
@@ -319,24 +311,12 @@ local function detectionLoop()
       local worldY = config.origin.y + sy
       local worldZ = config.origin.z + sz
 
+      -- Check meta.food.hunger to classify players.
       local meta = getMeta(entity)
-      if meta then
-        print("DEBUG: Full meta for '"..entityName.."':")
-        print(textutils.serialize(meta))
-      else
-        print("DEBUG: No meta for '"..entityName.."'")
-      end
-
-      -- Player detection: check meta.food.hunger
       local etype = "mob"
       if meta and meta.food and type(meta.food.hunger) == "number" then
         etype = "player"
       end
-
-      print(string.format(
-        "DEBUG: entity='%s' => type=%s, distance=%.1f",
-        entityName, etype, distance
-      ))
 
       if not config.whitelist[entityName] then
         local msg = string.format(
