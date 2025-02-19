@@ -55,6 +55,47 @@ local function getChoice(numOptions)
     return nil
 end
 
+-- Scrollable menu: use up/down arrow keys to navigate a long list.
+local function scrollableMenu(title, options)
+    local w, h = term.getSize()
+    local visibleCount = h - 4  -- Leave room for header and instructions.
+    local scrollStart = 1
+    local selected = 1
+    while true do
+        term.clear()
+        term.setCursorPos(1,1)
+        print("==== " .. title .. " ====")
+        local maxIndex = math.min(scrollStart + visibleCount - 1, #options)
+        for i = scrollStart, maxIndex do
+            if i == selected then
+                -- Highlight the selected option.
+                print(" > " .. i .. ". " .. options[i])
+            else
+                print("   " .. i .. ". " .. options[i])
+            end
+        end
+        print("\nUse ↑/↓ to navigate, Enter to select.")
+        local event, key = os.pullEvent("key")
+        if key == keys.up then
+            if selected > 1 then
+                selected = selected - 1
+                if selected < scrollStart then
+                    scrollStart = selected
+                end
+            end
+        elseif key == keys.down then
+            if selected < #options then
+                selected = selected + 1
+                if selected > scrollStart + visibleCount - 1 then
+                    scrollStart = selected - visibleCount + 1
+                end
+            end
+        elseif key == keys.enter then
+            return selected
+        end
+    end
+end
+
 -- Debug print: prints only if debug mode is enabled.
 local function debugLog(message)
     if debugMode then
@@ -159,7 +200,7 @@ local function createConfiguration()
     term.setCursorPos(1,1)
     print("=== Create New Configuration ===")
     
-    -- Select Source Inventory
+    -- Select Source Inventory using the scrollable menu.
     print("Select the SOURCE inventory:")
     local inventories = getInventories()
     if #inventories == 0 then
@@ -167,31 +208,15 @@ local function createConfiguration()
         sleep(2)
         return nil
     end
-    for i, inv in ipairs(inventories) do
-        print(i .. ". " .. inv)
-    end
-    local srcChoice = getChoice(#inventories)
-    if not srcChoice then
-        print("Invalid selection.")
-        sleep(1)
-        return nil
-    end
+    local srcChoice = scrollableMenu("Select the SOURCE inventory", inventories)
     local sourceName = inventories[srcChoice]
 
-    -- Select Target Inventory
+    -- Select Target Inventory using the scrollable menu.
     print("Select the TARGET inventory:")
-    for i, inv in ipairs(inventories) do
-        print(i .. ". " .. inv)
-    end
-    local tgtChoice = getChoice(#inventories)
-    if not tgtChoice then
-        print("Invalid selection.")
-        sleep(1)
-        return nil
-    end
+    local tgtChoice = scrollableMenu("Select the TARGET inventory", inventories)
     local targetName = inventories[tgtChoice]
 
-    -- Input source slots
+    -- Input source slots.
     print("Enter source slot(s) (comma-separated, or blank for slot 1):")
     local srcSlotsInput = read()
     local sourceSlots = {}
@@ -203,7 +228,7 @@ local function createConfiguration()
         end
     end
 
-    -- Input target slots
+    -- Input target slots.
     print("Enter target slot(s) (comma-separated, or blank for slot 1):")
     local tgtSlotsInput = read()
     local targetSlots = {}
@@ -215,12 +240,12 @@ local function createConfiguration()
         end
     end
 
-    -- Input number of items to move
+    -- Input number of items to move.
     print("Enter number of items to move (blank for full stack):")
     local amtInput = read()
     local amount = tonumber(amtInput) or nil
 
-    -- Looping option
+    -- Looping option.
     print("Should this configuration loop? (yes/no):")
     local loopInput = read():lower()
     local loop = (loopInput == "yes")
