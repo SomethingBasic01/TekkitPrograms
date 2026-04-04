@@ -1,0 +1,86 @@
+--make a searchable database with working menus 
+--you should be able to add/remove/search/quit
+
+local contacts = {
+ {name = "user", age = 00, job = "example" }
+ }
+
+local menu = true
+
+local function Clear(waitTime)
+ os.sleep(waitTime)
+ term.clear()
+ term.setCursorPos(1,1)
+end
+
+local function clearType()
+ print("type anything to continue...")
+ write("")
+ local r = read()
+end
+
+local function displayContacts()
+  for i, contactlist in ipairs(contacts) do
+   print(i .. ": " .. contactlist.name)
+   print(“age: “ .. contactlist.age)
+   print(“job: “ .. contactlist.job)
+   if i == #contacts then
+    clearType()
+   end
+  end
+ end
+ 
+local function searchContacts()
+ print("Type a name to search: ")
+ write("")
+ local lookup = read()
+ for i2, contactLookup in ipairs(contacts) do
+  if lookup == contactLookup.name then
+   Clear(0)
+   print(i2 .. ": " .. contactLookup.name)
+   print(“age” .. contactLookup.age)
+   print(“job” .. contactLookup.job)
+   clearType()
+   break
+  else
+   print("Not found")
+   clearType()
+  end
+ end
+end
+
+local function addContact()
+ write(“Enter name: “)
+ local contactName = read()
+ write(“Enter age: “)
+ local contactAge = tonumber(read())
+ write(“Enter job: “)
+ local contactJob = read()
+ table.insert(contacts, {name = contactName, age = contactAge, job = contactJob})
+end
+
+while menu do
+ Clear(0)
+ print("type 1 do display all contacts")
+ print("type 2 to search up a name in contacts")
+ print("type 3 to add contacts")
+ print("type 4 to remove contacts")
+ print("type q to quit")
+ write("")
+ local response = read()
+ if response == "q" then
+  print("Goodbye")
+  clearType()
+  menu = false
+ elseif response == "1" then
+  displayContacts()
+ elseif response == "2" then
+  searchContacts()
+ elseif response == “3” then
+  addContact()
+  clearType()
+ else
+  print(“not a valid response”)
+  clearType()
+end
+end
