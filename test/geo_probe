@@ -1,0 +1,12 @@
+local c = require("component")
+assert(c.isAvailable("geolyzer"), "No geolyzer found")
+
+local g = c.geolyzer
+local column = g.scan(0, 0, false)
+
+assert(type(column) == "table", "geolyzer.scan did not return a table")
+
+for i = 1, 64 do
+  io.write(string.format("%8.3f", tonumber(column[i]) or -999))
+  if i % 8 == 0 then io.write("\n") end
+end
