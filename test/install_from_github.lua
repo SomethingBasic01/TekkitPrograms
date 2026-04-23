@@ -11,7 +11,7 @@ local filesystem = require("filesystem")
 
 assert(component.isAvailable("internet"), "No internet card found")
 
-local BASE = "https://raw.githubusercontent.com/REPLACE_ME/REPLACE_ME/main/REPLACE_ME"
+local BASE = "https://github.com/SomethingBasic01/TekkitPrograms/tree/d54166ae5f03b60bf99a91676ca097f9f598262a/test"
 local FILES = {
   "console.lua",
   "scan_node.lua",
