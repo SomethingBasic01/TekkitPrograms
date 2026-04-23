@@ -15,8 +15,8 @@ local CFG_PATH = "/home/geo_projector_node.cfg"
 local PORT = 3413
 
 local defaults = {
-  nodeId = "projector_1",
-  label = "Projector 1",
+  nodeId = "projector_2",
+  label = "Projector 2",
   scale = 1,
   color1 = 0x00FF00,
   color2 = 0x00FFFF,
