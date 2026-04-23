@@ -19,9 +19,9 @@ local CFG = {
   PORT = 3413,
   MODEM_STRENGTH = 400,
 
-  WORLD_X = 0,
-  WORLD_Y = 64,
-  WORLD_Z = 0,
+  WORLD_X = -211,
+  WORLD_Y = 4,
+  WORLD_Z = -1178,
 
   AIR_MAX = 0.05,
   DENSE_MIN = 4.0,
