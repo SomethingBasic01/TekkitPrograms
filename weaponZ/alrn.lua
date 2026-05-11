@@ -1,26 +1,4 @@
 # alrn.lua
-
-```lua
---[[
-ALRN - Autonomous Logistics & Resource Network
-CC:Tweaked 1.12.2
-Single-file bounded industrial colony system.
-
-INSTALL:
-1. Paste this file as: /alrn.lua
-2. Ensure modem is attached/equipped.
-3. Run:
-
-    alrn init
-
-This system is intentionally bounded:
-- No stealth/evasion logic
-- No anti-player attacks
-- No hidden persistence
-- No uncontrolled replication
-
-]]
-
 --------------------------------------------------
 -- CONFIG
 --------------------------------------------------
@@ -517,8 +495,32 @@ local function bootstrapMining()
 end
 
 local function initializeColony()
+    if not turtle then
+        error("ALRN genesis must run on a turtle")
+    end
+
     if not openModem() then
         error("No modem attached")
+    end
+
+    local hasFuel = turtle.getFuelLevel() == "unlimited" or turtle.getFuelLevel() > 0
+
+    if not hasFuel then
+        error("Startup requires fuel (coal/charcoal/lava bucket/etc)")
+    end
+
+    local hasPickaxe = false
+
+    -- Basic validation for mining capability.
+    -- Most mining turtles expose dig() automatically,
+    -- but this prevents startup on non-mining turtles.
+    local ok = turtle.dig()
+    if ok ~= nil then
+        hasPickaxe = true
+    end
+
+    if not hasPickaxe then
+        error("Startup requires a mining turtle with a pickaxe upgrade")
     end
 
     STATE.networkKey = tostring(math.random(100000, 999999))
@@ -577,7 +579,9 @@ end
 -- MAIN
 --------------------------------------------------
 
-local args = {...}
+-- CC:Tweaked programs receive arguments directly.
+-- The file itself must NOT include markdown code fences.
+local args = { ... }
 
 math.randomseed(os.time())
 
