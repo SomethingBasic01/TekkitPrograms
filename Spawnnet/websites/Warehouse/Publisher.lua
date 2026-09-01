@@ -1,4 +1,4 @@
--- WarehouseOS 1.1.0 SpawnNet Publisher
+-- WarehouseOS 1.1.1 SpawnNet Publisher
 local net=dofile('/spawnnet/client/net.lua')
 local auth=dofile('/spawnnet/client/auth_client.lua')
 local util=dofile('/spawnnet/lib/util.lua')
@@ -51,7 +51,7 @@ pages['/']=p
 p=base('Create Warehouse','Create the virtual warehouse, then pair the physical controller','create');nav(p,5)
 add(p,{type='heading',x=3,y=9,w=45,text='CREATE A NEW WAREHOUSE',fg=C.yellow})
 add(p,{type='text',x=3,y=11,w=45,h=3,text='Give the warehouse a name. WarehouseOS will create a private warehouse ID and one-time controller pairing code.'})
-add(p,{type='input',id='warehouseName',x=3,y=15,w=45,placeholder='Highland Storage'})
+add(p,{type='input',id='warehouseName',x=3,y=15,w=45,value='My Warehouse',placeholder='Warehouse name'})
 add(p,{type='button',x=3,y=18,w=45,text='CREATE WAREHOUSE',bg=C.lime,fg=C.black,action={type='server',event='create_submit'}})
 add(p,{type='badge',id='createStatus',x=3,y=21,w=45,text='READY',bg=C.gray,fg=C.white,align='center'})
 add(p,{type='text',id='createId',x=3,y=24,w=45,h=2,text='Warehouse ID: -'})
@@ -536,12 +536,21 @@ end
 
 event create_submit
   call user.name -> who
+  call input.get "warehouseName" -> requestedName
   if $who == nil
     call ui.alert "Sign in first."
   else
-    call jobs.submit "host" "create" $input.warehouseName 0 "" -> jid
+    if $requestedName == nil
+      set requestedName "My Warehouse"
+    endif
+    if $requestedName == ""
+      set requestedName "My Warehouse"
+    endif
+    # Keep item fixed and carry the editable display name in note. This avoids
+    # treating a human warehouse name as a machine/item token anywhere in the job path.
+    call jobs.submit "host" "create" "warehouse" 0 $requestedName -> jid
     call ui.setValue "jobId" $jid
-    call ui.setText "createStatus" "CREATING..."
+    call ui.setText "createStatus" "CREATING: ${requestedName}"
   endif
 end
 
@@ -919,9 +928,9 @@ end
 local existingSite=net.call('web','getSite',{domain=DOMAIN})
 if existingSite and existingSite.site and existingSite.site.draft and existingSite.site.draft.pages then for path in pairs(existingSite.site.draft.pages)do if not pages[path]then net.call('web','deletePage',{domain=DOMAIN,path=path})end end end
 local order={};for path in pairs(pages)do order[#order+1]=path end;table.sort(order)
-term.clear();term.setCursorPos(1,1);term.setTextColor(C.lime);print('WAREHOUSEOS PUBLISHER 1.1.0');term.setTextColor(C.white)
+term.clear();term.setCursorPos(1,1);term.setTextColor(C.lime);print('WAREHOUSEOS PUBLISHER 1.1.1');term.setTextColor(C.white)
 for _,path in ipairs(order)do write(('Saving %-14s'):format(path));call('web','savePage',{domain=DOMAIN,path=path,page=pages[path]});print(' OK')end
 write('Saving WarehouseOS scripts... ');call('web','saveScripts',{domain=DOMAIN,clientScript=clientScript,serverScript=serverScript});print('OK')
 call('web','settings',{domain=DOMAIN,title='WarehouseOS',description='Hosted ME-style warehouses: search, filter, shared permissions, physical inventory controllers and pocket access.',tags={'warehouse','storage','inventory','me','computercraft','spawnnet'}})
-write('Publishing... ');call('web','publish',{domain=DOMAIN,note='WarehouseOS 1.1.0 variant-safe aliases + background service UX'});print('OK')
+write('Publishing... ');call('web','publish',{domain=DOMAIN,note='WarehouseOS 1.1.1 variant-safe aliases + background service UX'});print('OK')
 print();term.setTextColor(C.lime);print('WAREHOUSEOS PUBLISHED');term.setTextColor(C.white);print('Open: spn://'..DOMAIN);print();print('Next, install WarehouseOS on an always-loaded computer and run:');print('  warehouse-host')
