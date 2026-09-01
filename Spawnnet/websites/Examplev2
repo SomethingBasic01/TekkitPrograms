@@ -1,0 +1,22 @@
+-- SpawnNet App Package Publisher Example 1.0.1
+-- Run while logged in as the owner of spn://example (change DOMAIN below).
+local net=dofile('/spawnnet/client/net.lua')
+local auth=dofile('/spawnnet/client/auth_client.lua')
+local DOMAIN='example'
+if not net.loadSession()then local s,e=auth.ensureLogin();if not s then error(e,0)end end
+local files={
+  ['main.lua']=[[term.clear();term.setCursorPos(1,1);print('Hello from an installed SpawnNet application!');print('This code came from spn://example after native confirmation.')]],
+}
+local p,e=net.call('package','publish',{
+  domain=DOMAIN,
+  name='hello-app',
+  title='Hello App',
+  version='1.0.1',
+  description='Minimal SpawnNet installable application example.',
+  permissions={},
+  entry='main.lua',
+  files=files,
+})
+if not p then error(e,0)end
+print('Published package hello-app for spn://'..DOMAIN)
+print("Website button action: {type='install',package='hello-app'}")
