@@ -1,0 +1,579 @@
+-- SpawnNet 2.1.0 RC4 Wiki Publisher
+local util=dofile('/spawnnet/lib/util.lua')
+local net=dofile('/spawnnet/client/net.lua')
+local auth=dofile('/spawnnet/client/auth_client.lua')
+local C=colors
+local function die(s)term.setTextColor(C.red);print('ERROR: '..tostring(s));term.setTextColor(C.white);error(s,0)end
+local function call(s,a,p,o)local x,e=net.call(s,a,p or{},o);if not x then die(s..'.'..a..': '..tostring(e))end;return x end
+if not net.loadSession()then print('SpawnNet Wiki Publisher');local s,e=auth.ensureLogin();if not s then die(e)end end
+term.clear();term.setCursorPos(1,1);term.setTextColor(C.yellow);print('SPAWNNET 2.1 WIKI PUBLISHER');term.setTextColor(C.white);print('Network: '..tostring(net.activeNetwork().name));write('Target domain [wiki]: ');local domain=util.safeName(read(),32);if domain==''then domain='wiki'end
+local owned=net.call('web','getSite',{domain=domain})
+if not owned then local r=net.call('dns','resolve',{domain=domain},{noAuth=true});if r then die('spn://'..domain..' exists but is not owned by this account')end;call('dns','register',{domain=domain,title='SpawnNet Wiki'})end
+local function add(p,e)p.elements[#p.elements+1]=e;return e end
+local colorsByName={blue=C.blue,purple=C.purple,gray=C.gray,orange=C.orange,lime=C.lime,green=C.green,cyan=C.cyan}
+local function base(title,sub)
+ local p={title=title,background=C.black,elements={}}
+ add(p,{type='panel',x=1,y=1,w='100%',h=4,bg=C.gray,children={{type='heading',x=2,y=1,w=47,h=1,text='SPAWNNET WIKI',fg=C.yellow,bg=C.gray},{type='text',x=2,y=2,w=47,h=1,text=sub or title,fg=C.lightGray,bg=C.gray,align='center'}}})
+ add(p,{type='button',x=1,y=5,w=9,text='HOME',bg=C.blue,action={type='navigate',target='/'}})
+ add(p,{type='button',x=11,y=5,w=9,text='START',bg=C.blue,action={type='navigate',target='/start'}})
+ add(p,{type='button',x=21,y=5,w=9,text='STUDIO',bg=C.purple,action={type='navigate',target='/studio'}})
+ add(p,{type='button',x=31,y=5,w=9,text='LABS',bg=C.orange,action={type='navigate',target='/labs'}})
+ add(p,{type='button',x=41,y=5,w=9,text='API',bg=C.gray,action={type='navigate',target='/api'}})
+ return p,8
+end
+local function H(p,y,t)add(p,{type='heading',x=3,y=y,w=45,h=1,text=t,fg=C.yellow,align='left'});return y+2 end
+local function P(p,y,t)local h=math.max(1,#util.wrapText(t,45));add(p,{type='text',x=3,y=y,w=45,h=h,text=t,fg=C.white});return y+h+1 end
+local function B(p,y,text,path,bg)add(p,{type='button',x=3,y=y,w=45,h=1,text=text,bg=bg or C.blue,fg=C.white,action={type='navigate',target=path}});return y+2 end
+local function badge(p,y,t,bg)add(p,{type='badge',x=3,y=y,w=45,h=1,text=t,bg=bg or C.green,fg=C.black,align='center'});return y+2 end
+local function code(p,y,title,t)y=H(p,y,title);local h=math.max(1,#util.wrapText(t,41));add(p,{type='panel',x=3,y=y,w=45,h=h+2,bg=C.gray,border=true,borderChar='-',children={{type='text',x=2,y=2,w=41,h=h,text=t,fg=C.white,bg=C.gray}}});return y+h+3 end
+local pages={}
+local docs={
+  ["/"]={title="SpawnNet Wiki",sub="Complete documentation, working demos, and advanced API labs.",sections={
+    {t="h",text="Start here"},
+    {t="p",text="SpawnNet is a network, website platform, and application environment for ComputerCraft. Casual users can browse and build sites without Lua; advanced users can connect trusted computers, APIs, peripherals, telemetry, durable jobs, private networks, and storage nodes."},
+    {t="b",text="NEW USER: GETTING STARTED",path="/start",color="lime"},
+    {t="b",text="NO-CODE WEBSITE STUDIO",path="/studio",color="purple"},
+    {t="b",text="SPAWNNET LABS",path="/labs",color="orange"},
+    {t="b",text="DEVELOPER API",path="/api",color="gray"},
+    {t="h",text="Core ideas"},
+    {t="p",text="Each SpawnNet network has its own DNS, accounts, websites, data, mail, forums, and services. The active network decides what spn:// addresses resolve to. Public and private networks can coexist in the same wireless modem range."},
+    {t="p",text="Websites are hosted by the core and remain available even when their creator is offline. Trusted Lua computers can use the SDK to build workers and machine integrations without giving hosted website scripts direct peripheral access."},
+    {t="b",text="FULL INDEX",path="/index",color="gray"},
+  }},
+  ["/start"]={title="Getting Started",sub="From fresh client to first website.",sections={
+    {t="h",text="1. Open SpawnNet"},
+    {t="code",text="spawnnet",title="Command"},
+    {t="p",text="The Desktop is the normal user interface. CLI commands remain available for diagnostics and power users."},
+    {t="h",text="2. Choose a network"},
+    {t="p",text="Open NETWORKS. Discover nearby SpawnNet networks, select the one you want, and connect. Accounts and websites are scoped to that network."},
+    {t="h",text="3. Create or sign in"},
+    {t="p",text="Use the Desktop account screen. You can also use spawnnet register or spawnnet login from the shell."},
+    {t="h",text="4. Browse"},
+    {t="p",text="Open WEB and enter an address such as spn://wiki. Use mouse, keyboard navigation, scrolling, and browser history."},
+    {t="h",text="5. Build"},
+    {t="p",text="Open STUDIO, create a domain, choose a starter, add pages and content blocks, preview, and publish."},
+    {t="b",text="LEARN STUDIO",path="/studio",color="purple"},
+    {t="b",text="TROUBLESHOOTING",path="/troubleshooting",color="gray"},
+  }},
+  ["/desktop"]={title="Desktop",sub="SpawnNet should feel like an application, not a pile of commands.",sections={
+    {t="h",text="What the Desktop does"},
+    {t="p",text="The Desktop launches the Browser, Mail, Search, Studio, Networks, Apps, Forums, Chat, developer tools, settings, and account actions from one mouse-driven interface."},
+    {t="h",text="Power users"},
+    {t="p",text="The shell is still useful for automation and diagnostics. The Desktop does not remove the CLI; it makes the CLI optional for normal use."},
+    {t="code",text="spawnnet\nspawnnet web spn://wiki\nspawnnet studio\nspawnnet networks\nspawnnet doctor\nspawnnet update",title="Useful commands"},
+  }},
+  ["/accounts"]={title="Accounts & Identity",sub="Login belongs to the active SpawnNet network.",sections={
+    {t="h",text="Network-scoped identity"},
+    {t="p",text="An account created on Public SpawnNet does not automatically exist on a private company network. Switch networks first, then register or log in there."},
+    {t="h",text="Sessions"},
+    {t="p",text="The client stores a session locally after login. The server validates it on requests. A stale session can be cleared by logging out and signing in again."},
+    {t="h",text="API keys"},
+    {t="p",text="Trusted machine programs should use scoped API keys instead of storing a normal account password. Create keys in Developer Tools and give them only the permissions the worker needs."},
+    {t="b",text="SECURITY MODEL",path="/security",color="gray"},
+  }},
+  ["/browser"]={title="Browser",sub="Browsing, navigation, inputs, scrolling, live pages, and pinned sites.",sections={
+    {t="h",text="Addresses"},
+    {t="p",text="SpawnNet addresses use spn://domain/path. The domain is resolved inside the active SpawnNet network."},
+    {t="h",text="Navigation"},
+    {t="p",text="Pages can contain buttons that navigate to other paths or domains. The Browser also supports back/history, reload, direct address entry, search, scrolling, and site pinning."},
+    {t="h",text="Interactive pages"},
+    {t="p",text="Inputs, checkboxes, tables, lists, progress bars, images, and buttons can be changed by client SpawnScript or by server SpawnScript responses."},
+    {t="h",text="Live pages"},
+    {t="p",text="A page may request periodic server refresh events. Use this for dashboards and status pages, but keep refresh intervals reasonable."},
+    {t="b",text="SPAWNSCRIPT",path="/spawnscript",color="gray"},
+  }},
+  ["/studio"]={title="No-Code Studio",sub="A real website editor for users who do not know CC or Lua.",sections={
+    {t="h",text="The basic workflow"},
+    {t="p",text="Create a site, choose a starter, edit pages as ordered content blocks, add more pages, upload assets, create navigation buttons, preview, then publish."},
+    {t="h",text="Content blocks"},
+    {t="p",text="Easy Studio supports multiple headings, paragraphs, buttons/links, images, dividers, badges, inputs, checkboxes, progress bars, lists, and tables. Blocks can be edited, reordered, and deleted."},
+    {t="h",text="When to use Advanced Studio"},
+    {t="p",text="Use Advanced Studio when you need exact layout coordinates, custom element properties, SpawnScript, APIs, or behavior beyond the no-code editor."},
+    {t="b",text="PAGES",path="/studio/pages",color="purple"},
+    {t="b",text="CONTENT BLOCKS",path="/studio/blocks",color="purple"},
+    {t="b",text="IMAGES & ASSETS",path="/studio/images",color="purple"},
+    {t="b",text="FORMS",path="/studio/forms",color="purple"},
+  }},
+  ["/studio/pages"]={title="Studio: Pages",sub="Create as many pages as your site needs and link them together.",sections={
+    {t="h",text="Paths"},
+    {t="p",text="The home page is /. Other examples are /about, /services, /docs/start, or /contact."},
+    {t="h",text="Navigation"},
+    {t="p",text="Add a Button/Link block and set its destination to another path such as /about or a full SpawnNet address such as spn://wiki/start."},
+    {t="h",text="Page organization"},
+    {t="p",text="Keep a clear home page, use consistent navigation, and split long subjects into separate pages instead of forcing everything into one enormous document."},
+    {t="h",text="404 page"},
+    {t="p",text="Sites can provide /404 for unknown paths. The Wiki uses one so visitors always have a route back to the index."},
+  }},
+  ["/studio/blocks"]={title="Studio: Content Blocks",sub="Everything the basic editor can insert.",sections={
+    {t="h",text="Text"},
+    {t="p",text="Heading and Paragraph blocks can be repeated as many times as needed. Paragraphs use the multi-line editor."},
+    {t="h",text="Navigation"},
+    {t="p",text="Button/Link blocks navigate to another page or SpawnNet site."},
+    {t="h",text="Visuals"},
+    {t="p",text="Image blocks reference uploaded site assets. Divider and Badge blocks help organize dense pages."},
+    {t="h",text="Controls"},
+    {t="p",text="Input, Checkbox, Progress, List, and Table blocks are useful for interactive sites and dashboards. Advanced behavior can bind them to SpawnScript events."},
+  }},
+  ["/studio/images"]={title="Studio: Images & Assets",sub="Upload once, place the same asset on any page.",sections={
+    {t="h",text="Upload"},
+    {t="p",text="Open Assets in Studio and upload a local file to the site. NFP images are the native image format used by the current renderer."},
+    {t="h",text="Reuse"},
+    {t="p",text="An uploaded asset is stored by the site and can be placed on multiple pages without re-uploading."},
+    {t="h",text="Advanced use"},
+    {t="p",text="Advanced pages can request site assets by name. Keep assets reasonably small because ComputerCraft disks and Rednet packets are finite."},
+  }},
+  ["/studio/forms"]={title="Studio: Forms",sub="Simple forms without writing server code.",sections={
+    {t="h",text="Inputs"},
+    {t="p",text="Input and Checkbox blocks collect values. A button can trigger an event that reads those values."},
+    {t="h",text="No-code vs scripting"},
+    {t="p",text="Basic forms can be assembled visually. For validation, databases, mail delivery, durable jobs, or machine control, attach server SpawnScript or use an API-backed worker."},
+    {t="b",text="SPAWNSCRIPT",path="/spawnscript",color="gray"},
+    {t="b",text="JOBS API",path="/api/jobs",color="gray"},
+  }},
+  ["/publish"]={title="Publishing & Revisions",sub="Draft first, publish deliberately.",sections={
+    {t="h",text="Drafts"},
+    {t="p",text="Studio edits the draft version. Visitors continue seeing the published version until you publish."},
+    {t="h",text="Publish"},
+    {t="p",text="Publishing copies the draft into the public version and records a revision."},
+    {t="h",text="Revision history"},
+    {t="p",text="Use revision history to restore an older published snapshot into the draft, inspect it, and publish again if desired."},
+    {t="h",text="Safety"},
+    {t="p",text="Publishing is site-owner controlled. Keep important changes in small revisions so mistakes are easy to identify and reverse."},
+  }},
+  ["/mail"]={title="Mail",sub="Persistent, scrollable network mail.",sections={
+    {t="h",text="Inbox"},
+    {t="p",text="Mail is stored on the SpawnNet core. The client presents messages as a scrollable list with unread state rather than printing the whole mailbox into the terminal."},
+    {t="h",text="Reading and replying"},
+    {t="p",text="Open a message to read it in a scrollable document view, reply, or delete it. Compose and reply use the multi-line editor."},
+    {t="h",text="Sent mail"},
+    {t="p",text="The client can list messages you sent so conversations do not disappear after delivery."},
+    {t="h",text="Programmatic mail"},
+    {t="p",text="Trusted Lua can use the SDK mail API, and server SpawnScript can send mail for site workflows."},
+    {t="b",text="MAIL API",path="/api/mail",color="gray"},
+  }},
+  ["/forums"]={title="Forums",sub="Boards, scrolling threads, search, long posts, and replies.",sections={
+    {t="h",text="Boards and threads"},
+    {t="p",text="Forums are organized into boards. Thread lists are scrollable and show author/reply information."},
+    {t="h",text="Reading"},
+    {t="p",text="Posts and replies open in a scrollable reader instead of piling everything at the top of the screen."},
+    {t="h",text="Writing"},
+    {t="p",text="New threads and replies use the multi-line editor."},
+    {t="h",text="Search"},
+    {t="p",text="Forum search can find matching titles, body text, and authors across the forum service."},
+  }},
+  ["/chat"]={title="Chat",sub="Lightweight real-time room chat.",sections={
+    {t="h",text="Rooms"},
+    {t="p",text="Chat is organized into named rooms. The client reads recent messages, lets you post, and switch rooms."},
+    {t="h",text="Persistence"},
+    {t="p",text="The core keeps a bounded recent message history per room. Chat is for quick conversation; use Mail or Forums for durable long-form communication."},
+  }},
+  ["/search"]={title="Search",sub="Find published sites by indexed content.",sections={
+    {t="h",text="What is indexed"},
+    {t="p",text="Published site titles, descriptions, tags, and page text can contribute to search results."},
+    {t="h",text="Private networks"},
+    {t="p",text="Search only sees the active network. A private intranet has its own isolated search index."},
+  }},
+  ["/apps"]={title="Apps & Pinned Sites",sub="Turn important websites into one-click desktop entries.",sections={
+    {t="h",text="Pinning"},
+    {t="p",text="Pin a SpawnNet site from the Browser. The pin remembers the URL and network and appears in the Apps screen."},
+    {t="h",text="Website as application"},
+    {t="p",text="A rich site can combine forms, server SpawnScript, data, jobs, telemetry, and mail. Pinning it makes that site behave like an app launcher without giving it arbitrary local Lua access."},
+    {t="b",text="SITE-AS-APP LAB",path="/labs/siteapp",color="orange"},
+  }},
+  ["/networks"]={title="Networks",sub="Independent SpawnNet installations can coexist.",sections={
+    {t="h",text="Discovery"},
+    {t="p",text="A shared discovery protocol advertises nearby SpawnNet networks. Normal traffic uses a network-specific protocol derived from the network ID."},
+    {t="h",text="Isolation"},
+    {t="p",text="Accounts, DNS, websites, data, mail, and services are scoped to the selected network."},
+    {t="h",text="Switching"},
+    {t="p",text="Use Network Manager to discover, add, connect, forget, or supply a private join code."},
+    {t="b",text="PRIVATE NETWORKS",path="/networks/private",color="gray"},
+  }},
+  ["/networks/private"]={title="Private Networks",sub="Build a company intranet or isolated in-house web.",sections={
+    {t="h",text="Create"},
+    {t="p",text="Install a core with a unique Network ID, choose private visibility, and set a join code."},
+    {t="h",text="Join"},
+    {t="p",text="Clients discover the network, store the join code locally, and connect. Then create a separate account on that private network."},
+    {t="h",text="Same domain, different network"},
+    {t="p",text="Public SpawnNet and a private network can both own spn://wiki or spn://home because DNS is isolated by network."},
+    {t="b",text="INTRANET LAB",path="/labs/intranet",color="orange"},
+  }},
+  ["/nodes"]={title="Storage Nodes",sub="Pool spare always-loaded computers without creating competing cores.",sections={
+    {t="h",text="Authority stays central"},
+    {t="p",text="There is one authoritative core per network. Extra always-loaded computers join as storage nodes instead of competing cores."},
+    {t="h",text="Pairing"},
+    {t="p",text="Run the Storage Node installer, request enrollment, then approve the pending node from the admin cluster UI."},
+    {t="h",text="Replication"},
+    {t="p",text="Distributed objects can be copied to multiple approved nodes. If one node disappears, another replica can remain available."},
+    {t="h",text="Rebalance"},
+    {t="p",text="Admins can request rebalancing/replication as new nodes join or capacity changes."},
+    {t="b",text="CLUSTER LAB",path="/labs/cluster",color="orange"},
+  }},
+  ["/storage"]={title="Data Storage",sub="Where SpawnNet data lives and why 2.x no longer uses one giant database.",sections={
+    {t="h",text="Partitioned core data"},
+    {t="p",text="Accounts and network metadata remain on the core while sites, pages, assets, revisions, mail, databases, telemetry, and other growing datasets are partitioned instead of rewriting one monolithic state file for every change."},
+    {t="h",text="Storage-node objects"},
+    {t="p",text="Large/distributed objects can be placed on approved storage nodes with metadata and replicas tracked by the core."},
+    {t="h",text="Why this matters"},
+    {t="p",text="Partitioning reduces catastrophic full-file rewrites and makes it possible to expand storage with additional always-loaded computers."},
+  }},
+  ["/data"]={title="Site Storage & Databases",sub="Persistent application state for hosted websites.",sections={
+    {t="h",text="Site storage"},
+    {t="p",text="Site storage is a small key/value tree useful for counters, preferences, flags, and simple state."},
+    {t="h",text="Database collections"},
+    {t="p",text="The database service provides collections with get, set, insert, and list operations for structured site data."},
+    {t="code",text="local sn=dofile(\"/spawnnet/client/sdk.lua\")\nsn.storage.set(\"mysite\",\"status\",\"online\")\nsn.db.insert(\"mysite\",\"orders\",{item=\"iron\",count=16})",title="SDK examples"},
+    {t="h",text="Ownership"},
+    {t="p",text="Site data APIs require the site owner or an appropriately scoped trusted API key."},
+  }},
+  ["/spawnscript"]={title="SpawnScript",sub="Safe hosted scripting for websites.",sections={
+    {t="h",text="Why SpawnScript exists"},
+    {t="p",text="Hosted websites must not receive arbitrary Lua access to the core filesystem, shell, Rednet, HTTP, or peripherals. SpawnScript exposes a bounded set of operations instead."},
+    {t="h",text="Client script"},
+    {t="p",text="Client SpawnScript runs in the Browser and handles local UI behavior and per-computer local storage."},
+    {t="h",text="Server script"},
+    {t="p",text="Server SpawnScript runs through the core service layer and can use site storage, databases, mail, jobs, telemetry reads, identity, and safe UI patches."},
+    {t="code",text="event hello\n  call user.name -> who\n  call ui.setText \"greeting\" \"Hello ${who}\"\nend",title="Example"},
+    {t="b",text="LANGUAGE REFERENCE",path="/spawnscript/reference",color="gray"},
+  }},
+  ["/spawnscript/reference"]={title="SpawnScript Reference",sub="Core instructions and control flow.",sections={
+    {t="h",text="Events"},
+    {t="p",text="Scripts are organized as event NAME ... end blocks. Buttons and live pages invoke named events."},
+    {t="h",text="Variables"},
+    {t="p",text="Use set to assign values, call METHOD ... -> variable for service calls, and math for numeric expressions."},
+    {t="h",text="Control flow"},
+    {t="p",text="if / else / endif provide conditional logic. Keep scripts small and treat the service APIs as the boundary for durable work."},
+    {t="h",text="UI patches"},
+    {t="p",text="Server and client events can update text, values, visibility, lists, tables, selection, progress bars, alerts, and navigation through safe UI methods."},
+  }},
+  ["/api"]={title="Developer API",sub="Trusted Lua computers get the full SpawnNet SDK.",sections={
+    {t="h",text="Load the SDK"},
+    {t="code",text="local sn=dofile(\"/spawnnet/client/sdk.lua\")",title="Lua"},
+    {t="h",text="Major namespaces"},
+    {t="p",text="The SDK exposes DNS, web, storage, database, mail, events, search, forums/chat where appropriate, telemetry, durable jobs, network operations, and node administration."},
+    {t="h",text="Authentication"},
+    {t="p",text="Interactive programs may use a logged-in session. Long-running workers should use scoped API keys."},
+    {t="b",text="WEB & DATA",path="/api/web",color="gray"},
+    {t="b",text="DURABLE JOBS",path="/api/jobs",color="gray"},
+    {t="b",text="TELEMETRY",path="/api/telemetry",color="gray"},
+    {t="b",text="MAIL & EVENTS",path="/api/mail",color="gray"},
+    {t="b",text="NETWORK & NODES",path="/api/network",color="gray"},
+  }},
+  ["/api/web"]={title="API: Web & Data",sub="Site operations from trusted Lua.",sections={
+    {t="code",text="local sn=dofile(\"/spawnnet/client/sdk.lua\")\nlocal p=sn.web.get(\"wiki\",\"/\")",title="Read a page"},
+    {t="code",text="sn.storage.set(\"mysite\",\"key\",\"value\")\nlocal v=sn.storage.get(\"mysite\",\"key\")\nsn.storage.inc(\"mysite\",\"counter\",1)",title="Storage"},
+    {t="code",text="sn.db.set(\"mysite\",\"users\",\"bob\",{rank=\"member\"})\nsn.db.insert(\"mysite\",\"logs\",{message=\"hello\"})\nlocal rows=sn.db.list(\"mysite\",\"logs\",50)",title="Database"},
+    {t="p",text="Use the no-code Studio for normal page editing. The SDK is for trusted programs, automation, migration tools, and integrations."},
+  }},
+  ["/api/jobs"]={title="API: Durable Jobs",sub="The generic bridge between websites and trusted worker computers.",sections={
+    {t="h",text="What a job is"},
+    {t="p",text="A job is durable work stored on the core. A website can submit it while the target machine is offline. A trusted worker can later poll, claim, report progress, complete, or fail it."},
+    {t="code",text="local sn=dofile(\"/spawnnet/client/sdk.lua\")\nwhile true do\n  local q=sn.jobs.poll(\"mysite\",\"factory\",10)\n  for _,j in ipairs(q.jobs or {}) do\n    sn.jobs.claim(\"mysite\",j.id,\"worker-1\")\n    -- YOUR peripheral/API work here\n    sn.jobs.progress(\"mysite\",j.id,50,\"Halfway\")\n    sn.jobs.complete(\"mysite\",j.id,{ok=true},\"Done\")\n  end\n  sleep(2)\nend",title="Worker skeleton"},
+    {t="h",text="No official warehouse agent"},
+    {t="p",text="SpawnNet deliberately does not ship one hard-coded item-transfer agent. Discover your server peripherals and decide what a job means for your machines."},
+    {t="b",text="REAL JOB LAB",path="/labs/jobs",color="orange"},
+    {t="b",text="CHEST API BUILD LAB",path="/labs/chest",color="orange"},
+  }},
+  ["/api/telemetry"]={title="API: Telemetry",sub="Publish physical machine state for live dashboards.",sections={
+    {t="h",text="Push"},
+    {t="code",text="sn.telemetry.push(\"mysite\",\"reactor\",{power=18291,temp=722,online=true})",title="Lua"},
+    {t="h",text="Read"},
+    {t="p",text="Websites or trusted clients can read recent telemetry points for a stream. Use short summaries, not giant raw peripheral dumps."},
+    {t="h",text="Physical data"},
+    {t="p",text="Read real peripheral methods with peripheral.call or peripheral.wrap, normalize the useful values, then push them into SpawnNet."},
+    {t="b",text="LIVE TELEMETRY LAB",path="/labs/telemetry",color="orange"},
+  }},
+  ["/api/mail"]={title="API: Mail & Events",sub="Persistent communication primitives.",sections={
+    {t="code",text="sn.mail.send(\"bob\",\"Subject\",\"Longer message body\")\nlocal inbox=sn.mail.inbox(25)",title="Mail"},
+    {t="code",text="sn.events.emit(\"bob\",\"machine.alert\",{message=\"Over temperature\"})\nlocal events=sn.events.poll(25)",title="Events"},
+    {t="p",text="Mail is human-facing and durable. Events are lightweight queued application messages consumed by clients or workers."},
+  }},
+  ["/api/network"]={title="API: Network & Nodes",sub="Discovery, switching, and admin cluster operations.",sections={
+    {t="h",text="Networks"},
+    {t="p",text="Trusted clients can inspect known networks, discover nearby advertisements, and switch the active network."},
+    {t="h",text="Nodes"},
+    {t="p",text="Admin tools can inspect online/pending storage nodes, approve pairing requests, and request replication/rebalancing."},
+    {t="p",text="Normal applications should not hardcode Rednet protocols. Use SpawnNet discovery and the active network registry."},
+  }},
+  ["/security"]={title="Security Model",sub="Public website code and trusted machine code are intentionally different.",sections={
+    {t="h",text="Hosted code is sandboxed"},
+    {t="p",text="SpawnScript cannot directly open the shell, filesystem, Rednet, HTTP, or arbitrary peripherals."},
+    {t="h",text="Trusted workers are powerful"},
+    {t="p",text="Lua running on a player-controlled computer can use normal ComputerCraft peripheral APIs plus a scoped SpawnNet API key. This is where physical machine integration belongs."},
+    {t="h",text="Least privilege"},
+    {t="p",text="Create API keys with only the scopes needed by the worker. Revoke keys that are lost or no longer used."},
+    {t="h",text="Private networks"},
+    {t="p",text="Private visibility and join codes isolate discovery access, but administrators should still treat the network as a game-server service rather than a high-security real-world system."},
+  }},
+  ["/protocol"]={title="Protocol & Discovery",sub="How multiple networks avoid stepping on one another.",sections={
+    {t="h",text="Discovery"},
+    {t="p",text="Clients listen on the shared SpawnNet v2 discovery channel for network advertisements."},
+    {t="h",text="Network traffic"},
+    {t="p",text="Each network derives its client and backbone protocols from its unique network ID, so multiple cores in modem range do not all answer the same application protocol."},
+    {t="h",text="Request matching"},
+    {t="p",text="SpawnNet requests include IDs and validate sender/protocol responses so unrelated Rednet traffic is ignored."},
+  }},
+  ["/admin"]={title="Administration",sub="Core, users, private networks, storage, and diagnostics.",sections={
+    {t="h",text="Core"},
+    {t="p",text="Keep the authoritative core chunk-loaded whenever the SpawnNet network should be available. Stop it before running a core installer upgrade."},
+    {t="h",text="Storage cluster"},
+    {t="p",text="Approve only storage nodes you control. Watch free space and replica health in the Nodes screen."},
+    {t="h",text="Moderation"},
+    {t="p",text="Admin tools can review reports, suspend users/sites, and grant roles."},
+    {t="h",text="Diagnostics"},
+    {t="code",text="spawnnet-status\nspawnnet doctor\nspawnnet nodes",title="Commands"},
+  }},
+  ["/update"]={title="Updates",sub="Clients should not require a chain of manually copied hotfixes.",sections={
+    {t="h",text="Core first"},
+    {t="p",text="Upgrade the core first. The core publishes the official client package for that SpawnNet version."},
+    {t="h",text="Clients"},
+    {t="code",text="spawnnet update",title="Client update"},
+    {t="p",text="Fresh computers can use the matching Client installer directly."},
+    {t="h",text="Release candidates"},
+    {t="p",text="Test RC builds on one client/core before rolling them out broadly. Do not call an RC public-stable until the real server has exercised the important paths."},
+  }},
+  ["/troubleshooting"]={title="Troubleshooting",sub="Use diagnostics before editing internal files.",sections={
+    {t="h",text="Core not found"},
+    {t="p",text="Check that both machines have modems, are in range, and the client is connected to the correct SpawnNet network."},
+    {t="h",text="Wrong website/network"},
+    {t="p",text="Open Network Manager and verify the active network. The same spn:// domain can exist independently on multiple networks."},
+    {t="h",text="Login problems"},
+    {t="p",text="Log out and back in. Accounts are network-specific."},
+    {t="h",text="Version mismatch"},
+    {t="code",text="spawnnet doctor",title="Check"},
+    {t="p",text="Update the core first, then run spawnnet update on clients."},
+    {t="h",text="Report exact errors"},
+    {t="p",text="When reporting a failure, include the full error text and which Core/Client/Wiki build you ran. Line numbers are extremely useful."},
+  }},
+  ["/labs"]={title="SpawnNet Labs",sub="Working software demos first; hardware labs are honest build-it-yourself integrations.",sections={
+    {t="badge",text="THE LABS SHOULD PROVE REAL FEATURES, NOT FAKE SCREENSHOTS.",color="orange"},
+    {t="b",text="LAB 01 - INSTANT SOFTWARE DEMO",path="/labs/instant",color="lime"},
+    {t="b",text="LAB 02 - DURABLE JOB QUEUE",path="/labs/jobs",color="purple"},
+    {t="b",text="LAB 03 - LIVE TELEMETRY",path="/labs/telemetry",color="cyan"},
+    {t="b",text="LAB 04 - BUILD A CHEST WEB API",path="/labs/chest",color="orange"},
+    {t="b",text="LAB 05 - STORAGE CLUSTER",path="/labs/cluster",color="gray"},
+    {t="b",text="LAB 06 - PRIVATE INTRANET",path="/labs/intranet",color="gray"},
+    {t="b",text="LAB 07 - WEBSITE AS APP",path="/labs/siteapp",color="gray"},
+    {t="p",text="Hardware labs intentionally require you to write the trusted worker. SpawnNet provides the queue, authentication, data, telemetry, and website side; the worker teaches you how to connect the API to whatever peripherals your server actually has."},
+  }},
+  ["/reference"]={title="Command Reference",sub="Useful CLI equivalents for power users.",sections={
+    {t="code",text="spawnnet                    Desktop\nspawnnet web spn://domain     Browser\nspawnnet studio               Easy Studio\nspawnnet networks             Network Manager\nspawnnet mail                 Mail\nspawnnet forum                Forums\nspawnnet chat [room]          Chat\nspawnnet doctor               Diagnostics\nspawnnet update               Update client\nspawnnet login / register     Account CLI",title="Client"},
+    {t="code",text="spawnnet-server             Start core\nspawnnet-status             Core status\nspawnnet-admin              Admin tools",title="Core"},
+    {t="p",text="The Desktop remains the recommended interface for casual users."},
+  }},
+  ["/about"]={title="About",sub="A low floor and a ridiculous ceiling.",sections={
+    {t="h",text="Design goal"},
+    {t="p",text="A player who knows nothing about CC or Lua should be able to browse, register, create pages, add text/images/links, publish, use Mail, and use Forums without opening a code editor."},
+    {t="h",text="Advanced ceiling"},
+    {t="p",text="A developer should be able to build private intranets, live machine dashboards, persistent workers, web-controlled factories, distributed storage integrations, and custom application workflows using the SDK and normal ComputerCraft APIs."},
+    {t="p",text="SpawnNet is infrastructure. It should provide the web, identity, data, communication, jobs, telemetry, network isolation, storage, and tools. Players decide what applications to invent on top of it."},
+  }},
+}
+
+for path,d in pairs(docs)do
+ local p,y=base(d.title,d.sub)
+ for _,s in ipairs(d.sections)do
+  if s.t=='h'then y=H(p,y,s.text)
+  elseif s.t=='p'then y=P(p,y,s.text)
+  elseif s.t=='code'then y=code(p,y,s.title,s.text)
+  elseif s.t=='b'then y=B(p,y,s.text,s.path,colorsByName[s.color]or C.blue)
+  elseif s.t=='badge'then y=badge(p,y,s.text,colorsByName[s.color]or C.green)end
+ end
+ pages[path]=p
+end
+
+-- INSTANT LAB: no hardware required.
+do
+ local p,y=base('LAB 01 - Instant','Everything on this page works on a normal SpawnNet install.');p.liveInterval=3;p.liveServerEvent='lab_refresh'
+ add(p,{type='badge',x=3,y=8,w=45,h=1,text='NO EXTERNAL MACHINE REQUIRED',bg=C.lime,fg=C.black,align='center'})
+ add(p,{type='button',x=3,y=11,w=22,text='WHO AM I?',bg=C.blue,action={type='server',event='lab_identity'}})
+ add(p,{type='button',x=27,y=11,w=22,text='SHARED COUNTER +1',bg=C.purple,action={type='server',event='lab_shared'}})
+ add(p,{type='text',id='identity',x=3,y=14,w=45,h=1,text='Identity: click the button'})
+ add(p,{type='text',id='shared',x=3,y=16,w=45,h=1,text='Shared counter: loading...'})
+ add(p,{type='button',x=3,y=19,w=45,text='LOCAL COUNTER +1 (THIS COMPUTER ONLY)',bg=C.gray,action={type='event',event='lab_local'}})
+ add(p,{type='text',id='local',x=3,y=21,w=45,h=1,text='Local counter: 0'})
+ add(p,{type='input',id='demoMessage',x=3,y=24,w=45,placeholder='Type feedback to send as real SpawnNet Mail'})
+ add(p,{type='button',x=3,y=26,w=45,text='SEND MAIL TO WIKI OWNER',bg=C.cyan,action={type='server',event='lab_mail'}})
+ add(p,{type='text',id='mailState',x=3,y=28,w=45,h=2,text='Mail demo ready.'})
+ y=31;y=H(p,y,'Why this matters');y=P(p,y,'One page is using authenticated identity, server-persistent storage, computer-local storage, live refresh, UI patches, form input, and persistent SpawnNet Mail. Inspect /spawnscript and /api to build the same behavior yourself.')
+ pages['/labs/instant']=p
+end
+
+-- DURABLE JOB LAB: queue is real; no worker shipped.
+do
+ local p,y=base('LAB 02 - Durable Job Queue','Submit work now. Write your own worker later.');p.liveInterval=2;p.liveServerEvent='job_refresh'
+ add(p,{type='badge',x=3,y=8,w=45,text='GENERIC JOBS - NO WAREHOUSE AGENT INSTALLED',bg=C.orange,fg=C.black,align='center'})
+ add(p,{type='input',id='jobItem',x=3,y=11,w=29,value='minecraft:iron_ingot',placeholder='payload item'})
+ add(p,{type='input',id='jobCount',x=34,y=11,w=15,value='16',placeholder='count'})
+ add(p,{type='button',x=3,y=13,w=45,text='SUBMIT QUEUED JOB',bg=C.purple,action={type='server',event='job_submit'}})
+ add(p,{type='input',id='jobId',x=3,y=16,w=45,value='',placeholder='job id'})
+ add(p,{type='progress',id='jobProgress',x=3,y=18,w=45,value=0,max=100})
+ add(p,{type='text',id='jobState',x=3,y=20,w=45,h=3,text='No job submitted.'})
+ y=24;y=H(p,y,'Now make it insane');y=P(p,y,'Leave the job queued. On another trusted computer use the worker code from /api/jobs. Make action demo do anything your server exposes: move chest items, craft, open a redstone door, start a machine, dispatch a train, or call a modded peripheral. Claim and complete this same job and this page will update automatically.')
+ y=B(p,y,'OPEN JOBS API / WORKER CODE','/api/jobs',C.gray);pages['/labs/jobs']=p
+end
+
+-- TELEMETRY LAB: honest offline until user publishes.
+do
+ local p,y=base('LAB 03 - Live Telemetry','A real dashboard for data pushed by your own Lua worker.');p.liveInterval=2;p.liveServerEvent='telemetry_refresh'
+ add(p,{type='badge',id='telemetryState',x=3,y=8,w=45,text='STREAM: checking...',bg=C.orange,fg=C.black,align='center'})
+ add(p,{type='text',id='telemetryBody',x=3,y=11,w=45,h=6,text='No telemetry received.'})
+ y=19;y=H(p,y,'Publish a point');y=code(p,y,'Trusted Lua computer','local sn=dofile("/spawnnet/client/sdk.lua")\nsn.telemetry.push("wiki","demo",{\n  machine="My Reactor",\n  power=18291,\n  temperature=722,\n  online=true\n})')
+ y=P(p,y,'Change those fields to values read from actual peripheral.call or peripheral.wrap methods. The page above will stop saying OFFLINE and show the real point.')
+ pages['/labs/telemetry']=p
+end
+
+-- CHEST BUILD LAB: no agent, detailed API blueprint.
+do
+ local p,y=base('LAB 04 - Build a Chest Web API','SpawnNet gives you the plumbing; you decide how item transfer works on your server.')
+ y=badge(p,y,'THIS LAB DOES NOT INSTALL A WAREHOUSE AGENT.',C.lime)
+ y=H(p,y,'Architecture');y=code(p,y,'Flow','Website -> jobs.submit -> SpawnNet Core -> your Lua worker -> inventory peripheral\n                                      -> telemetry.push -> website')
+ y=H(p,y,'1. Inspect your peripheral');y=code(p,y,'ComputerCraft','for _,name in ipairs(peripheral.getNames()) do\n  print(name, peripheral.getType(name))\n  print(textutils.serialize(peripheral.getMethods(name)))\nend')
+ y=H(p,y,'2. Poll jobs');y=code(p,y,'Worker skeleton','local sn=dofile("/spawnnet/client/sdk.lua")\nwhile true do\n  local q=sn.jobs.poll("wiki","demo",10)\n  for _,j in ipairs(q.jobs or {}) do\n    sn.jobs.claim("wiki",j.id,"chest-worker")\n    -- call YOUR inventory API here\n    sn.jobs.complete("wiki",j.id,{moved=j.payload.count},"Moved items")\n  end\n  sleep(2)\nend')
+ y=H(p,y,'3. Publish inventory telemetry');y=P(p,y,'Read list(), getItemDetail(), pushItems(), or whatever your storage peripheral actually exposes. Summarize the result into a small table and push it with sn.telemetry.push. Your website never receives raw peripheral access.')
+ y=B(p,y,'USE THE REAL JOB QUEUE LAB','/labs/jobs',C.purple);pages['/labs/chest']=p
+end
+
+-- CLUSTER LAB.
+do
+ local p,y=base('LAB 05 - Storage Cluster','Live status from the SpawnNet backbone.');p.liveInterval=3;p.liveServerEvent='cluster_refresh'
+ add(p,{type='badge',id='clusterState',x=3,y=8,w=45,text='CLUSTER: checking...',bg=C.orange,fg=C.black,align='center'})
+ add(p,{type='text',id='clusterFree',x=3,y=11,w=45,h=2,text='Free space: ...'})
+ add(p,{type='text',id='clusterObjects',x=3,y=14,w=45,h=2,text='Objects: ...'})
+ y=18;y=P(p,y,'If this wiki is owned by a network admin, the page reads the real storage-node summary. Add/approve a node, reload, and the online/free-space values change. No simulated nodes are generated.')
+ y=B(p,y,'HOW STORAGE NODES WORK','/nodes',C.gray);pages['/labs/cluster']=p
+end
+
+-- INTRANET LAB.
+do
+ local p,y=base('LAB 06 - Private Intranet','The same spn:// address can mean a different site on another network.')
+ y=H(p,y,'Experiment');y=P(p,y,'Install a second core with Network ID labnet and private visibility. Give it a join code. Discover and connect to LABNET. Create spn://demo. Switch back to Public SpawnNet and create another spn://demo. The URL is identical; the active network decides which isolated DNS/database you are using.')
+ y=badge(p,y,'MULTIPLE CORES. SAME MODEM RANGE. NO PROTOCOL COLLISION.',C.lime);y=B(p,y,'NETWORK GUIDE','/networks/private',C.gray);pages['/labs/intranet']=p
+end
+
+-- SITE-AS-APP LAB.
+do
+ local p,y=base('LAB 07 - Website as Application','A site can behave like a small application without arbitrary local Lua.')
+ y=H(p,y,'Try it');y=P(p,y,'Press P in the browser on this page. Open SpawnNet Desktop -> APPS. The pinned entry remembers both this URL and its network. A player can build a dashboard/site in Studio, pin it, and treat it like an app icon.')
+ y=P(p,y,'Combine that with server SpawnScript, forms, jobs, telemetry, mail, and databases and the distinction between website and application becomes mostly a UI choice.')
+ pages['/labs/siteapp']=p
+end
+
+-- Index / 404.
+do
+ local p,y=base('Wiki Index','All major documentation sections.')
+ local links={{'Getting Started','/start'},{'Desktop','/desktop'},{'Accounts','/accounts'},{'Browser','/browser'},{'Studio','/studio'},{'Publishing','/publish'},{'Mail','/mail'},{'Forums','/forums'},{'Search','/search'},{'Apps','/apps'},{'Networks','/networks'},{'Storage Nodes','/nodes'},{'Data Storage','/storage'},{'Site Data','/data'},{'SpawnScript','/spawnscript'},{'Developer API','/api'},{'Security','/security'},{'Admin','/admin'},{'Updates','/update'},{'Troubleshooting','/troubleshooting'},{'Labs','/labs'},{'Reference','/reference'},{'About','/about'}}
+ for _,l in ipairs(links)do y=B(p,y,l[1],l[2],C.gray)end;pages['/index']=p
+end
+do local p,y=base('404','That path does not exist in this wiki.');y=P(p,y,'Use the index or home page to continue.');y=B(p,y,'HOME','/',C.blue);y=B(p,y,'INDEX','/index',C.gray);pages['/404']=p end
+
+local clientScript=[=[
+event load
+  call local.get "wiki.localClicks" -> c
+  if $c == nil
+    set c 0
+  endif
+  call ui.setText "local" "Local counter: ${c}"
+end
+
+event lab_local
+  call local.get "wiki.localClicks" -> c
+  if $c == nil
+    set c 0
+  endif
+  math c $c + 1
+  call local.set "wiki.localClicks" $c
+  call ui.setText "local" "Local counter: ${c}"
+end
+]=]
+
+local serverScript=[=[
+event lab_identity
+  call user.name -> who
+  if $who == nil
+    call ui.setText "identity" "Identity: Guest (not logged in)"
+  else
+    call ui.setText "identity" "Identity: ${who}"
+  endif
+end
+
+event lab_shared
+  call storage.inc "labs.sharedCounter" 1 -> n
+  call ui.setText "shared" "Shared counter: ${n}"
+end
+
+event lab_refresh
+  call storage.get "labs.sharedCounter" -> n
+  if $n == nil
+    set n 0
+  endif
+  call ui.setText "shared" "Shared counter: ${n}"
+end
+
+event lab_mail
+  call site.owner -> owner
+  call mail.send $owner "Wiki Lab message" $input.demoMessage -> mid
+  call ui.setText "mailState" "Sent real SpawnNet Mail: ${mid}"
+  call ui.alert "Mail delivered to ${owner}"
+end
+
+event job_submit
+  call jobs.submit "demo" "operation" $input.jobItem $input.jobCount -> jid
+  call ui.setValue "jobId" $jid
+  call ui.setProgress "jobProgress" 0
+  call ui.setText "jobState" "QUEUED: ${jid} - waiting for a worker you write"
+end
+
+event job_refresh
+  if $input.jobId != ""
+    call jobs.status $input.jobId -> j
+    if $j != nil
+      call ui.setText "jobState" "${j.status}: ${j.message}"
+      call ui.setProgress "jobProgress" $j.progress
+    endif
+  endif
+end
+
+event telemetry_refresh
+  call telemetry.last "demo" -> t
+  if $t == nil
+    call ui.setText "telemetryState" "STREAM OFFLINE - NO REAL DATA YET"
+    call ui.setText "telemetryBody" "Push wiki/demo telemetry from your own trusted Lua worker."
+  else
+    call ui.setText "telemetryState" "LIVE TELEMETRY - COMPUTER #${t._computer}"
+    call ui.setText "telemetryBody" "Machine: ${t.machine}  Power: ${t.power}  Temperature: ${t.temperature}  Online: ${t.online}"
+  endif
+end
+
+event cluster_refresh
+  call network.cluster -> c
+  call ui.setText "clusterState" "CLUSTER: ${c.online}/${c.totalNodes} STORAGE NODES ONLINE"
+  call ui.setText "clusterFree" "Combined online free space: ${c.free} bytes"
+  call ui.setText "clusterObjects" "Tracked distributed objects: ${c.objects}"
+end
+]=]
+
+local logo=[=[
+ffffffffffffffff
+f77777777777777f
+f7bbbbbbbbbbbb7f
+f7b9999999999b7f
+f7b99bb99bb99b7f
+f7b9bbbbbbbb9b7f
+f7b99bb99bb99b7f
+f7b9999999999b7f
+f7bbbbbbbbbbbb7f
+f77777777777777f
+ffffffffffffffff
+]=]
+
+print('Preparing '..tostring((function()local n=0;for _ in pairs(pages)do n=n+1 end;return n end)())..' wiki pages...')
+local current=net.call('web','getSite',{domain=domain})
+if current and current.site and current.site.draft and current.site.draft.pages then for path in pairs(current.site.draft.pages)do if not pages[path]then net.call('web','deletePage',{domain=domain,path=path})end end end
+local order={};for path in pairs(pages)do order[#order+1]=path end;table.sort(order)
+for _,path in ipairs(order)do write(('Saving %-26s'):format(path));local p,e=net.call('web','savePage',{domain=domain,path=path,page=pages[path]});if not p then print(' FAIL');die(e)end;print(' OK')end
+write('Saving Wiki scripts... ');call('web','saveScripts',{domain=domain,clientScript=clientScript,serverScript=serverScript});print('OK')
+write('Uploading logo... ');call('web','putAsset',{domain=domain,name='spawnnet_logo',mime='image/nfp',data=logo});print('OK')
+call('web','settings',{domain=domain,title='SpawnNet Wiki',description='Complete SpawnNet 2.1 manual, working software labs, and honest hardware/API build labs.',tags={'spawnnet','wiki','docs','api','studio','networks','jobs','telemetry','labs'}})
+write('Publishing... ');call('web','publish',{domain=domain,note='SpawnNet 2.1 complete wiki + labs'});print('OK')
+print();term.setTextColor(C.lime);print('WIKI PUBLISHED');term.setTextColor(C.white);print('Open: spn://'..domain);print('Start: spn://'..domain..'/start');print('Working demo: spn://'..domain..'/labs/instant');print('Developer labs: spn://'..domain..'/labs')
