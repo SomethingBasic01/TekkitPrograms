@@ -1,4 +1,4 @@
--- WarehouseOS 1.1.0 Installer
+-- WarehouseOS 1.1.1 Installer
 local files={
   ["/warehouse-controller.lua"]=[=[shell.run('/warehouseos/controller.lua','setup')
 ]=],
@@ -274,9 +274,15 @@ local function immediateJob(j)
   if action=='profile_register'then save();return complete(j.id,{user=user},'Warehouse profile registered')
   elseif action=='list'then return complete(j.id,listFor(user,tonumber(parts[1])or 1),'Warehouses loaded')
   elseif action=='create'then
-    local name=common.trim(item);if name==''then return fail(j.id,'Warehouse name required')end
+    -- Website 1.1.1 sends the human-facing name in note, keeping payload.item fixed.
+    -- Fall back to item so older published WarehouseOS pages remain compatible.
+    local rawName=(j.payload or{}).note
+    if rawName==nil or common.trim(rawName)==''then rawName=item end
+    local name=common.trim(rawName):gsub('[%c]',' '):gsub('%s+',' ')
+    if name==''then return fail(j.id,'Warehouse name required')end
+    if #name>40 then name=name:sub(1,40)end
     local owned=0;for _,x in pairs(state.warehouses)do if x.owner==user then owned=owned+1 end end;if owned>=10 then return fail(j.id,'Warehouse limit reached')end
-    local id=newId(name);local pair=code(8);local w={id=id,name=name:sub(1,40),owner=user,members={},created=os.clock(),index={},aliases={},history={},terminals={},pairCode=pair,pairExpires=os.clock()+1800}
+    local id=newId(name);local pair=code(8);local w={id=id,name=name,owner=user,members={},created=os.clock(),index={},aliases={},history={},terminals={},pairCode=pair,pairExpires=os.clock()+1800}
     state.warehouses[id]=w;state.pairCodes[pair]=id;save();return complete(j.id,{warehouseId=id,name=w.name,pairCode=pair},'Warehouse created - pair a controller')
   elseif action=='summary'then
     local w=warehouse(parts[1]);local r=role(w,user);if not common.roleCan(r,'view')then return fail(j.id,'No access to this warehouse')end
@@ -462,9 +468,26 @@ end
 function M.startBackground(path,lock,...)
   if M.isRunning(lock)then return true,'Already running' end
   local args={...}
-  if shell and shell.openTab then local id=shell.openTab(path,unpack(args));if id then return true,'Started background tab '..tostring(id)end end
-  if multishell and multishell.launch then local env=setmetatable({},{__index=_G});local id=multishell.launch(env,path,unpack(args));if id then return true,'Started background tab '..tostring(id)end end
-  return false,'Background service requires an Advanced Computer/multishell.'
+  if shell and shell.openTab then
+    local ok,id=pcall(shell.openTab,path,unpack(args))
+    if ok and id then return true,'Started background tab '..tostring(id)end
+  end
+  if multishell and multishell.launch then
+    local env=setmetatable({},{__index=_G})
+    local ok,id=pcall(multishell.launch,env,path,unpack(args))
+    if ok and id then return true,'Started background tab '..tostring(id)end
+  end
+  local advanced=(term.isColor and term.isColor())or(term.isColour and term.isColour())or false
+  if advanced then
+    -- CC 1.77+ can disable multishell per computer. An Advanced Computer is still
+    -- advanced even when CraftOS was booted without the multishell wrapper.
+    if settings and settings.set then
+      pcall(settings.set,'bios.use_multishell',true)
+      if settings.save then pcall(settings.save)end
+    end
+    return false,'This IS an Advanced Computer, but CraftOS multishell is disabled. WarehouseOS enabled bios.use_multishell. Reboot this computer once, then run the command again.'
+  end
+  return false,'Background service requires an Advanced Computer.'
 end
 return M
 ]=],
@@ -564,9 +587,16 @@ if fs.exists('/warehouseos/terminal.db')then common.startBackground('/warehouseo
 ]=],
 }
 local function mkdirFor(path) local d=fs.getDir(path);if d~=''and not fs.exists(d)then fs.makeDir(d)end end
-term.clear();term.setCursorPos(1,1);term.setTextColor(colors.lime);print('WAREHOUSEOS 1.1.0');term.setTextColor(colors.white);print('Installing ME-style storage tools for SpawnNet...');print()
+term.clear();term.setCursorPos(1,1);term.setTextColor(colors.lime);print('WAREHOUSEOS 1.1.1');term.setTextColor(colors.white);print('Installing ME-style storage tools for SpawnNet...');print()
 if not fs.exists('/spawnnet/client/net.lua')then error('SpawnNet client must be installed first.',0)end
 for path,data in pairs(files)do mkdirFor(path);local h=fs.open(path,'w');if not h then error('Cannot write '..path,0)end;h.write(data);h.close();print('  '..path)end
+local multishellWasEnabled=false
+local advanced=(term.isColor and term.isColor())or(term.isColour and term.isColour())or false
+if advanced and not(shell and shell.openTab)and settings and settings.set then
+  pcall(settings.set,'bios.use_multishell',true)
+  if settings.save then pcall(settings.save)end
+  multishellWasEnabled=true
+end
 local function installStartupHook()
   if fs.exists('/startup')and fs.isDir('/startup')then
     local h=fs.open('/startup/warehouseos.lua','w');if h then h.write("if fs.exists('/warehouseos/autostart.lua') then shell.run('/warehouseos/autostart.lua') end\n");h.close()end;return
@@ -578,4 +608,6 @@ local function installStartupHook()
   end
 end
 installStartupHook()
-print();term.setTextColor(colors.lime);print('INSTALL COMPLETE');term.setTextColor(colors.white);print();print('Commands:');print('  warehouse             WarehouseOS menu');print('  warehouse-host        Central always-loaded host');print('  warehouse-controller  Physical warehouse controller');print('  warehouse-terminal    Wireless remote terminal');print();print('Publish the website separately with WarehouseOS-Publisher-1.1.0.lua')
+print();term.setTextColor(colors.lime);print('INSTALL COMPLETE');term.setTextColor(colors.white)
+if multishellWasEnabled then term.setTextColor(colors.yellow);print();print('ADVANCED COMPUTER DETECTED: CraftOS multishell was disabled.');print('WarehouseOS enabled bios.use_multishell for this computer.');print('Reboot this computer ONCE before starting background services.');term.setTextColor(colors.white)end
+print();print('Commands:');print('  warehouse             WarehouseOS menu');print('  warehouse-host        Central always-loaded host');print('  warehouse-controller  Physical warehouse controller');print('  warehouse-terminal    Wireless remote terminal');print();print('Publish the website separately with WarehouseOS-Publisher-1.1.1.lua')
