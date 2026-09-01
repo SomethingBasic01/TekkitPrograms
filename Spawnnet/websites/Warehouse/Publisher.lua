@@ -1,4 +1,4 @@
--- WarehouseOS 1.1.1 SpawnNet Publisher
+-- WarehouseOS 1.1.2 SpawnNet Publisher
 local net=dofile('/spawnnet/client/net.lua')
 local auth=dofile('/spawnnet/client/auth_client.lua')
 local util=dofile('/spawnnet/lib/util.lua')
@@ -536,7 +536,7 @@ end
 
 event create_submit
   call user.name -> who
-  call input.get "warehouseName" -> requestedName
+  set requestedName $input.warehouseName
   if $who == nil
     call ui.alert "Sign in first."
   else
@@ -928,9 +928,9 @@ end
 local existingSite=net.call('web','getSite',{domain=DOMAIN})
 if existingSite and existingSite.site and existingSite.site.draft and existingSite.site.draft.pages then for path in pairs(existingSite.site.draft.pages)do if not pages[path]then net.call('web','deletePage',{domain=DOMAIN,path=path})end end end
 local order={};for path in pairs(pages)do order[#order+1]=path end;table.sort(order)
-term.clear();term.setCursorPos(1,1);term.setTextColor(C.lime);print('WAREHOUSEOS PUBLISHER 1.1.1');term.setTextColor(C.white)
+term.clear();term.setCursorPos(1,1);term.setTextColor(C.lime);print('WAREHOUSEOS PUBLISHER 1.1.2');term.setTextColor(C.white)
 for _,path in ipairs(order)do write(('Saving %-14s'):format(path));call('web','savePage',{domain=DOMAIN,path=path,page=pages[path]});print(' OK')end
 write('Saving WarehouseOS scripts... ');call('web','saveScripts',{domain=DOMAIN,clientScript=clientScript,serverScript=serverScript});print('OK')
 call('web','settings',{domain=DOMAIN,title='WarehouseOS',description='Hosted ME-style warehouses: search, filter, shared permissions, physical inventory controllers and pocket access.',tags={'warehouse','storage','inventory','me','computercraft','spawnnet'}})
-write('Publishing... ');call('web','publish',{domain=DOMAIN,note='WarehouseOS 1.1.1 variant-safe aliases + background service UX'});print('OK')
+write('Publishing... ');call('web','publish',{domain=DOMAIN,note='WarehouseOS 1.1.2 variant-safe aliases + background service UX'});print('OK')
 print();term.setTextColor(C.lime);print('WAREHOUSEOS PUBLISHED');term.setTextColor(C.white);print('Open: spn://'..DOMAIN);print();print('Next, install WarehouseOS on an always-loaded computer and run:');print('  warehouse-host')
